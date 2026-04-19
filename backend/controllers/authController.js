@@ -115,15 +115,20 @@ async function sendRegisterCode(req, res) {
       });
     } catch (mailError) {
       registerCodeStore.delete(email);
+
+      const reason = process.env.NODE_ENV !== 'production'
+        ? ` (${mailError.message})`
+        : '';
+
       return res.status(500).json({
         status: 'error',
-        message: 'Failed to send verification email. Please check SMTP settings and try again.',
+        message: `Failed to send verification email. Please check SMTP settings and try again.${reason}`,
       });
     }
 
     const payload = {
       status: 'ok',
-      message: 'Verification code sent to your email',
+      message: 'Verification code sent to your email. Check Inbox, Spam, and Updates folders.',
     };
 
     return res.json(payload);
@@ -316,15 +321,19 @@ async function sendForgotCode(req, res) {
       student.forgotCodeVerified = false;
       await student.save();
 
+      const reason = process.env.NODE_ENV !== 'production'
+        ? ` (${mailError.message})`
+        : '';
+
       return res.status(500).json({
         status: 'error',
-        message: 'Failed to send reset email. Please check SMTP settings and try again.',
+        message: `Failed to send reset email. Please check SMTP settings and try again.${reason}`,
       });
     }
 
     const payload = {
       status: 'ok',
-      message: 'Reset code sent to your email',
+      message: 'Reset code sent to your email. Check Inbox, Spam, and Updates folders.',
     };
 
     return res.json(payload);

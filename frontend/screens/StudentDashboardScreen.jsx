@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,92 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 
-const quickActions = [
-  {
-    id: 'report',
-    title: 'Submit Concern',
-    subtitle: 'Create a new concern ticket',
-    icon: 'document-text-outline',
-    iconBg: '#fdecea',
-    iconColor: '#d32f2f',
-  },
-  {
-    id: 'drafts',
-    title: 'Drafts',
-    subtitle: 'Continue unfinished reports',
-    icon: 'folder-open-outline',
-    iconBg: '#fff4e5',
-    iconColor: '#f57c00',
-  },
-  {
-    id: 'profile',
-    title: 'Profile',
-    subtitle: 'Update account information',
-    icon: 'person-outline',
-    iconBg: '#e8f1fe',
-    iconColor: '#1565c0',
-  },
-  {
-    id: 'help',
-    title: 'Support',
-    subtitle: 'Need help with your account?',
-    icon: 'help-circle-outline',
-    iconBg: '#e9f7ef',
-    iconColor: '#2e7d32',
-  },
-];
-
-const dashboardTips = [
-  {
-    id: 'tip-1',
-    title: 'Attach clear evidence',
-    text: 'Images and precise details help admins resolve concerns faster.',
-    icon: 'camera-outline',
-    iconColor: '#d32f2f',
-    iconBg: '#fdecea',
-  },
-  {
-    id: 'tip-2',
-    title: 'Track status daily',
-    text: 'Use your dashboard progress to monitor each concern journey.',
-    icon: 'pulse-outline',
-    iconColor: '#0d47a1',
-    iconBg: '#e8f1fe',
-  },
-  {
-    id: 'tip-3',
-    title: 'Respond quickly',
-    text: 'If admin asks for details, reply quickly to avoid delays.',
-    icon: 'chatbox-ellipses-outline',
-    iconColor: '#ef6c00',
-    iconBg: '#fff4e5',
-  },
-];
-
-const concernMock = [
-  {
-    id: 'CN-2026-041',
-    subject: 'Exam timetable clash',
-    status: 'in-progress',
-    updatedAt: 'Updated 2 hours ago',
-    preview: 'Two mandatory module exams are scheduled at the same time this Friday.',
-  },
-  {
-    id: 'CN-2026-033',
-    subject: 'Library access issue',
-    status: 'pending',
-    updatedAt: 'Updated yesterday',
-    preview: 'Student portal access card is not opening the library gate after 6 PM.',
-  },
-  {
-    id: 'CN-2026-017',
-    subject: 'Lecture hall equipment',
-    status: 'complete',
-    updatedAt: 'Resolved 3 days ago',
-    preview: 'Projector in Hall 03 was not working for multiple sessions.',
-  },
-];
-
 function getInitials(firstName, lastName, email) {
   const f = String(firstName || '').trim();
   const l = String(lastName || '').trim();
@@ -107,33 +23,6 @@ function getInitials(firstName, lastName, email) {
   }
 
   return String(email || 'S').trim().charAt(0).toUpperCase() || 'S';
-}
-
-function getStatusConfig(status) {
-  if (status === 'complete') {
-    return {
-      label: 'Complete',
-      bg: '#e8f5e9',
-      text: '#2e7d32',
-      progress: 1,
-    };
-  }
-
-  if (status === 'in-progress') {
-    return {
-      label: 'In Progress',
-      bg: '#fff3e0',
-      text: '#ef6c00',
-      progress: 0.66,
-    };
-  }
-
-  return {
-    label: 'Pending',
-    bg: '#f3f4f6',
-    text: '#475569',
-    progress: 0.25,
-  };
 }
 
 function resolveAssetUrl(apiBaseUrl, pathValue) {
@@ -170,17 +59,70 @@ function getNowParts() {
   };
 }
 
+function formatMemberSince(value) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Not available';
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export default function StudentDashboardScreen() {
-  const { user, logout, apiBaseUrl } = useAuth();
+  const { user, logout, apiBaseUrl, refreshMe } = useAuth();
   const [clock, setClock] = useState(getNowParts());
+  const [refreshing, setRefreshing] = useState(false);
+  const [initialSyncing, setInitialSyncing] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setClock(getNowParts());
-    }, 1000);
+    }, 60000);
 
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initialRefresh() {
+      setInitialSyncing(true);
+      try {
+        await refreshMe();
+      } catch (error) {
+        // Keep dashboard usable even if refresh fails.
+      } finally {
+        if (isMounted) {
+          setInitialSyncing(false);
+        }
+      }
+    }
+
+    initialRefresh();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshMe]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshMe();
+    } catch (error) {
+      // No-op: existing data remains visible.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshMe]);
 
   const displayName = useMemo(() => {
     const firstName = String(user?.firstName || '').trim();
@@ -195,48 +137,44 @@ export default function StudentDashboardScreen() {
 
   const avatarText = getInitials(user?.firstName, user?.lastName, user?.email);
   const studentPhotoUri = resolveAssetUrl(apiBaseUrl, user?.studentIdPhoto);
+  const memberSince = formatMemberSince(user?.createdAt);
 
-  const statData = useMemo(() => {
-    const total = concernMock.length;
-    const inProgressCount = concernMock.filter((item) => item.status === 'in-progress').length;
-    const completedCount = concernMock.filter((item) => item.status === 'complete').length;
-
-    return [
-      {
-        id: 'st-1',
-        label: 'Total Concerns',
-        value: String(total),
-        icon: 'layers-outline',
-        color: '#d32f2f',
-        bg: '#fdecea',
-      },
-      {
-        id: 'st-2',
-        label: 'In Progress',
-        value: String(inProgressCount),
-        icon: 'time-outline',
-        color: '#ef6c00',
-        bg: '#fff4e5',
-      },
-      {
-        id: 'st-3',
-        label: 'Resolved',
-        value: String(completedCount),
-        icon: 'checkmark-done-outline',
-        color: '#2e7d32',
-        bg: '#e8f5e9',
-      },
+  const profileCompletion = useMemo(() => {
+    const profileChecks = [
+      user?.firstName,
+      user?.lastName,
+      user?.email,
+      user?.studentId,
+      user?.studentIdPhoto,
     ];
-  }, []);
+
+    const completed = profileChecks.filter((value) => String(value || '').trim() !== '').length;
+    return Math.round((completed / profileChecks.length) * 100);
+  }, [user?.email, user?.firstName, user?.lastName, user?.studentId, user?.studentIdPhoto]);
+
+  const idPhotoStatus = user?.studentIdPhoto ? 'Uploaded' : 'Missing';
+
+  if (initialSyncing && !user) {
+    return (
+      <SafeAreaView style={styles.loaderWrap}>
+        <ActivityIndicator size="large" color="#e53935" />
+        <Text style={styles.loaderText}>Loading your dashboard...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollWrap}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#e53935" />}
+      >
         <View style={styles.topNavRow}>
           <Text style={styles.topNavTitle}>Student Dashboard</Text>
           <View style={styles.topNavActions}>
-            <TouchableOpacity style={styles.iconButton} activeOpacity={0.85}>
-              <Ionicons name="notifications-outline" size={18} color="#374151" />
+            <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleRefresh}>
+              <Ionicons name="refresh-outline" size={18} color="#374151" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.9}>
               <Ionicons name="log-out-outline" size={16} color="#ffffff" />
@@ -258,7 +196,7 @@ export default function StudentDashboardScreen() {
             </View>
 
             <Text style={styles.heroName}>Welcome, {displayName}</Text>
-            <Text style={styles.heroSubText}>Manage your concerns, monitor progress, and stay informed.</Text>
+            <Text style={styles.heroSubText}>Your account overview is synced to real profile data.</Text>
 
             <View style={styles.heroMetaRow}>
               <View style={styles.heroMetaPill}>
@@ -268,6 +206,10 @@ export default function StudentDashboardScreen() {
               <View style={styles.heroMetaPill}>
                 <Ionicons name="id-card-outline" size={12} color="#ffffff" />
                 <Text style={styles.heroMetaText}>{user?.studentId || 'No ID'}</Text>
+              </View>
+              <View style={styles.heroMetaPill}>
+                <Ionicons name="calendar-outline" size={12} color="#ffffff" />
+                <Text style={styles.heroMetaText}>Member since {memberSince}</Text>
               </View>
             </View>
           </View>
@@ -288,132 +230,135 @@ export default function StudentDashboardScreen() {
           </View>
         </LinearGradient>
 
-        <View style={styles.statsRow}>
-          {statData.map((item) => (
-            <View key={item.id} style={styles.statCard}>
-              <View style={[styles.statIconWrap, { backgroundColor: item.bg }]}>
-                <Ionicons name={item.icon} size={20} color={item.color} />
-              </View>
-              <Text style={styles.statValue}>{item.value}</Text>
-              <Text style={styles.statLabel}>{item.label}</Text>
-            </View>
-          ))}
+        <View style={styles.statusGrid}>
+          <View style={styles.statusCard}>
+            <Ionicons name="sparkles-outline" size={20} color="#d32f2f" />
+            <Text style={styles.statusValue}>{profileCompletion}%</Text>
+            <Text style={styles.statusLabel}>Profile Completion</Text>
+          </View>
+
+          <View style={styles.statusCard}>
+            <Ionicons name="image-outline" size={20} color="#1565c0" />
+            <Text style={styles.statusValue}>{idPhotoStatus}</Text>
+            <Text style={styles.statusLabel}>ID Photo</Text>
+          </View>
+
+          <View style={styles.statusCard}>
+            <Ionicons name="shield-checkmark-outline" size={20} color="#2e7d32" />
+            <Text style={styles.statusValue}>Active</Text>
+            <Text style={styles.statusLabel}>Account Session</Text>
+          </View>
         </View>
 
-        <View style={styles.workspaceGrid}>
-          <View style={styles.panelCard}>
-            <View style={styles.panelHeaderRow}>
-              <Text style={styles.panelTitle}>Student Profile</Text>
-              <View style={styles.approvedBadge}>
-                <View style={styles.approvedDot} />
-                <Text style={styles.approvedText}>Verified</Text>
-              </View>
-            </View>
-
-            <View style={styles.profileList}>
-              <View style={styles.profileItem}>
-                <Ionicons name="person-outline" size={16} color="#e53935" />
-                <View style={styles.profileTextWrap}>
-                  <Text style={styles.profileLabel}>Full Name</Text>
-                  <Text style={styles.profileValue}>{displayName}</Text>
-                </View>
-              </View>
-
-              <View style={styles.profileItem}>
-                <Ionicons name="mail-outline" size={16} color="#e53935" />
-                <View style={styles.profileTextWrap}>
-                  <Text style={styles.profileLabel}>Email</Text>
-                  <Text style={styles.profileValue}>{user?.email || '-'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.profileItem}>
-                <Ionicons name="card-outline" size={16} color="#e53935" />
-                <View style={styles.profileTextWrap}>
-                  <Text style={styles.profileLabel}>Student ID</Text>
-                  <Text style={styles.profileValue}>{user?.studentId || '-'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.profileItem}>
-                <Ionicons name="shield-checkmark-outline" size={16} color="#e53935" />
-                <View style={styles.profileTextWrap}>
-                  <Text style={styles.profileLabel}>Role</Text>
-                  <Text style={styles.profileValue}>{user?.role || 'student'}</Text>
-                </View>
-              </View>
+        <View style={styles.panelCard}>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>Account Details</Text>
+            <View style={styles.approvedBadge}>
+              <View style={styles.approvedDot} />
+              <Text style={styles.approvedText}>Live</Text>
             </View>
           </View>
 
-          <View style={styles.panelCard}>
-            <View style={styles.panelHeaderRow}>
-              <Text style={styles.panelTitle}>Quick Actions</Text>
-              <Text style={styles.panelSubtitle}>Fast student workflows</Text>
+          <View style={styles.profileList}>
+            <View style={styles.profileItem}>
+              <Ionicons name="person-outline" size={16} color="#e53935" />
+              <View style={styles.profileTextWrap}>
+                <Text style={styles.profileLabel}>Full Name</Text>
+                <Text style={styles.profileValue}>{displayName}</Text>
+              </View>
             </View>
 
-            <View style={styles.actionsGrid}>
-              {quickActions.map((item) => (
-                <TouchableOpacity key={item.id} style={styles.actionCard} activeOpacity={0.9}>
-                  <View style={[styles.actionIconWrap, { backgroundColor: item.iconBg }]}>
-                    <Ionicons name={item.icon} size={18} color={item.iconColor} />
-                  </View>
-                  <Text style={styles.actionTitle}>{item.title}</Text>
-                  <Text style={styles.actionSubtitle}>{item.subtitle}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.profileItem}>
+              <Ionicons name="mail-outline" size={16} color="#e53935" />
+              <View style={styles.profileTextWrap}>
+                <Text style={styles.profileLabel}>Email</Text>
+                <Text style={styles.profileValue}>{user?.email || '-'}</Text>
+              </View>
             </View>
+
+            <View style={styles.profileItem}>
+              <Ionicons name="card-outline" size={16} color="#e53935" />
+              <View style={styles.profileTextWrap}>
+                <Text style={styles.profileLabel}>Student ID</Text>
+                <Text style={styles.profileValue}>{user?.studentId || '-'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.profileItem}>
+              <Ionicons name="shield-checkmark-outline" size={16} color="#e53935" />
+              <View style={styles.profileTextWrap}>
+                <Text style={styles.profileLabel}>Role</Text>
+                <Text style={styles.profileValue}>{user?.role || 'student'}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.panelCard, styles.mobileActionPanel]}>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>Mobile Actions</Text>
+            <Text style={styles.panelSubtitle}>Quick controls</Text>
+          </View>
+
+          <View style={styles.mobileActionGrid}>
+            <TouchableOpacity style={styles.mobileActionBtn} activeOpacity={0.9} onPress={handleRefresh}>
+              <Ionicons name="sync-outline" size={18} color="#1565c0" />
+              <Text style={styles.mobileActionText}>Refresh</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
+              <Ionicons name="chatbubbles-outline" size={18} color="#6b7280" />
+              <Text style={styles.mobileActionText}>Concerns Soon</Text>
+            </View>
+
+            <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
+              <Ionicons name="notifications-outline" size={18} color="#6b7280" />
+              <Text style={styles.mobileActionText}>Alerts Soon</Text>
+            </View>
+
+            <TouchableOpacity style={[styles.mobileActionBtn, styles.mobileActionBtnDanger]} activeOpacity={0.9} onPress={logout}>
+              <Ionicons name="log-out-outline" size={18} color="#b71c1c" />
+              <Text style={[styles.mobileActionText, styles.mobileActionTextDanger]}>Sign Out</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={[styles.panelCard, styles.trackingPanel]}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>Concern Tracking</Text>
-            <Text style={styles.panelSubtitle}>Recent activities</Text>
+            <Text style={styles.panelSubtitle}>No sample items</Text>
           </View>
 
-          {concernMock.map((item) => {
-            const status = getStatusConfig(item.status);
-            return (
-              <View key={item.id} style={styles.concernCard}>
-                <View style={styles.concernHeader}>
-                  <View style={styles.concernHeaderLeft}>
-                    <Text style={styles.concernRef}>{item.id}</Text>
-                    <Text style={styles.concernTitle}>{item.subject}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-                    <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.concernPreview}>{item.preview}</Text>
-
-                <View style={styles.progressTrack}>
-                  <View style={styles.progressRail} />
-                  <View style={[styles.progressFill, { width: `${Math.round(status.progress * 100)}%` }]} />
-                </View>
-
-                <Text style={styles.concernTime}>{item.updatedAt}</Text>
-              </View>
-            );
-          })}
+          <View style={styles.emptyStateCard}>
+            <Ionicons name="file-tray-outline" size={28} color="#9aa4b2" />
+            <Text style={styles.emptyStateTitle}>No concerns available yet</Text>
+            <Text style={styles.emptyStateText}>
+              This dashboard now shows real data only. Concern records will appear when the concern backend API is connected.
+            </Text>
+          </View>
         </View>
 
-        <View style={[styles.panelCard, styles.tipsPanel]}>
+        <View style={[styles.panelCard, styles.mobileBottomBar]}>
           <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>Student Tips</Text>
-            <Text style={styles.panelSubtitle}>Best practices</Text>
+            <Text style={styles.panelTitle}>App Navigation</Text>
+            <Text style={styles.panelSubtitle}>Mobile style</Text>
           </View>
 
-          <View style={styles.tipsGrid}>
-            {dashboardTips.map((item) => (
-              <View key={item.id} style={styles.tipCard}>
-                <View style={[styles.tipIconWrap, { backgroundColor: item.iconBg }]}>
-                  <Ionicons name={item.icon} size={18} color={item.iconColor} />
-                </View>
-                <Text style={styles.tipTitle}>{item.title}</Text>
-                <Text style={styles.tipText}>{item.text}</Text>
-              </View>
-            ))}
+          <View style={styles.bottomTabsWrap}>
+            <View style={[styles.bottomTab, styles.bottomTabActive]}>
+              <Ionicons name="home" size={16} color="#e53935" />
+              <Text style={[styles.bottomTabText, styles.bottomTabTextActive]}>Dashboard</Text>
+            </View>
+
+            <View style={styles.bottomTab}>
+              <Ionicons name="chatbox-ellipses-outline" size={16} color="#94a3b8" />
+              <Text style={styles.bottomTabText}>Concerns</Text>
+            </View>
+
+            <View style={styles.bottomTab}>
+              <Ionicons name="person-circle-outline" size={16} color="#94a3b8" />
+              <Text style={styles.bottomTabText}>Profile</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -422,6 +367,18 @@ export default function StudentDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f2f6',
+  },
+  loaderText: {
+    marginTop: 10,
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#f0f2f6',
@@ -440,7 +397,7 @@ const styles = StyleSheet.create({
   },
   topNavTitle: {
     color: '#111827',
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '900',
   },
   topNavActions: {
@@ -464,8 +421,8 @@ const styles = StyleSheet.create({
     gap: 5,
     borderRadius: 999,
     backgroundColor: '#e53935',
-    paddingHorizontal: 11,
-    paddingVertical: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   logoutText: {
     color: '#ffffff',
@@ -475,9 +432,8 @@ const styles = StyleSheet.create({
   heroCard: {
     borderRadius: 20,
     padding: 16,
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 12,
-    justifyContent: 'space-between',
   },
   heroLeft: {
     flex: 1,
@@ -539,8 +495,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   heroRight: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 2,
   },
   clockCard: {
     backgroundColor: 'rgba(255,255,255,0.16)',
@@ -549,7 +507,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     minWidth: 110,
   },
   clockDate: {
@@ -571,7 +529,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.42)',
     backgroundColor: '#ffffff',
-    marginTop: 10,
   },
   avatarFallback: {
     width: 66,
@@ -582,19 +539,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
-    marginTop: 10,
   },
   avatarFallbackText: {
     color: '#ffffff',
     fontSize: 22,
     fontWeight: '900',
   },
-  statsRow: {
+  statusGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  statCard: {
+  statusCard: {
     flex: 1,
     minWidth: 102,
     borderRadius: 14,
@@ -607,30 +563,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 2,
+    alignItems: 'flex-start',
+    minHeight: 118,
   },
-  statIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 24,
+  statusValue: {
+    fontSize: 20,
     color: '#111827',
     fontWeight: '900',
-    marginBottom: 2,
+    marginTop: 8,
+    marginBottom: 4,
   },
-  statLabel: {
+  statusLabel: {
     fontSize: 11,
     color: '#6b7280',
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.55,
-  },
-  workspaceGrid: {
-    gap: 10,
   },
   panelCard: {
     borderRadius: 16,
@@ -714,149 +662,101 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  actionsGrid: {
+  mobileActionPanel: {
+    marginTop: 0,
+  },
+  mobileActionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  actionCard: {
+  mobileActionBtn: {
     width: '48%',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e3e9f3',
-    backgroundColor: '#f8fbff',
-    padding: 10,
-    minHeight: 112,
-  },
-  actionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    borderColor: '#d7e4f6',
+    backgroundColor: '#f0f7ff',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    gap: 7,
   },
-  actionTitle: {
-    color: '#111827',
-    fontSize: 13,
+  mobileActionBtnPassive: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#e5e7eb',
+  },
+  mobileActionBtnDanger: {
+    backgroundColor: '#fff5f5',
+    borderColor: '#fecaca',
+  },
+  mobileActionText: {
+    color: '#0f172a',
+    fontSize: 12,
     fontWeight: '800',
-    marginBottom: 3,
   },
-  actionSubtitle: {
-    color: '#6b7280',
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '600',
+  mobileActionTextDanger: {
+    color: '#b71c1c',
   },
   trackingPanel: {
     gap: 9,
   },
-  concernCard: {
-    borderRadius: 12,
+  emptyStateCard: {
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ebeff6',
-    backgroundColor: '#fcfdff',
-    padding: 11,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#fbfcfe',
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  concernHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 7,
-  },
-  concernHeaderLeft: {
-    flex: 1,
-  },
-  concernRef: {
-    color: '#9aa4b2',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  concernTitle: {
-    color: '#111827',
+  emptyStateTitle: {
+    marginTop: 10,
+    marginBottom: 6,
+    color: '#334155',
     fontSize: 14,
     fontWeight: '800',
   },
-  statusBadge: {
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  concernPreview: {
-    color: '#475569',
+  emptyStateText: {
+    color: '#6b7280',
     fontSize: 12,
     lineHeight: 18,
-    marginBottom: 9,
-  },
-  progressTrack: {
-    position: 'relative',
-    height: 6,
-    borderRadius: 8,
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  progressRail: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 6,
-    borderRadius: 8,
-    backgroundColor: '#e2e8f0',
-  },
-  progressFill: {
-    height: 6,
-    borderRadius: 8,
-    backgroundColor: '#0ea5e9',
-  },
-  concernTime: {
-    color: '#94a3b8',
-    fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  tipsPanel: {
+  mobileBottomBar: {
     marginBottom: 2,
   },
-  tipsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tipCard: {
-    width: '48%',
-    borderRadius: 12,
+  bottomTabsWrap: {
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e8edf5',
-    backgroundColor: '#fdfefe',
-    padding: 10,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    padding: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  tipIconWrap: {
-    width: 38,
-    height: 38,
+  bottomTab: {
+    flex: 1,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    paddingVertical: 9,
+    gap: 5,
   },
-  tipTitle: {
-    color: '#111827',
-    fontSize: 12,
+  bottomTabActive: {
+    backgroundColor: '#fff0f0',
+  },
+  bottomTabText: {
+    color: '#94a3b8',
+    fontSize: 10,
     fontWeight: '800',
-    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  tipText: {
-    color: '#6b7280',
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '600',
+  bottomTabTextActive: {
+    color: '#e53935',
   },
 });

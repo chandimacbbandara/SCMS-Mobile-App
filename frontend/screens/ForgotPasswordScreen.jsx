@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +49,9 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [sendLoading, setSendLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const rules = useMemo(() => passwordRules(newPassword), [newPassword]);
   const passwordsMatch = newPassword.length > 0 && confirmPassword.length > 0 && newPassword === confirmPassword;
@@ -125,145 +130,151 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.pageWrap} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <TouchableOpacity
-            style={styles.navBtn}
-            onPress={() => navigation.navigate('Home')}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="chevron-back" size={16} color="#111827" />
-            <Text style={styles.navBtnText}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.navBtn, styles.navBtnDark]}
-            onPress={() => navigation.navigate('Login')}
-            activeOpacity={0.9}
-          >
-            <Text style={[styles.navBtnText, styles.navBtnDarkText]}>Login</Text>
-          </TouchableOpacity>
-        </View>
+      <KeyboardAvoidingView style={styles.flexOne} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
+          <View style={styles.topRow}>
+            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Home')} activeOpacity={0.9}>
+              <Ionicons name="chevron-back" size={16} color="#111827" />
+              <Text style={styles.navGhostText}>Back</Text>
+            </TouchableOpacity>
 
-        <LinearGradient
-          colors={['#ef5350', '#e53935', '#b71c1c']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerPanel}
-        >
-          <Image source={sideLogo} style={styles.headerLogo} resizeMode="contain" />
-          <Text style={styles.heading}>Forgot Password</Text>
-          <Text style={styles.subHeading}>Complete each step to reset your account password securely.</Text>
-        </LinearGradient>
-
-        <View style={styles.stepperWrap}>
-          <View style={styles.stepperRow}>
-            <View style={[styles.stepperDot, step >= 1 && styles.stepperDotActive]}>
-              <Text style={[styles.stepperDotText, step >= 1 && styles.stepperDotTextActive]}>1</Text>
-            </View>
-            <View style={styles.stepperLine} />
-            <View style={[styles.stepperDot, step >= 2 && styles.stepperDotActive]}>
-              <Text style={[styles.stepperDotText, step >= 2 && styles.stepperDotTextActive]}>2</Text>
-            </View>
-            <View style={styles.stepperLine} />
-            <View style={[styles.stepperDot, step >= 3 && styles.stepperDotActive]}>
-              <Text style={[styles.stepperDotText, step >= 3 && styles.stepperDotTextActive]}>3</Text>
-            </View>
-          </View>
-          <Text style={styles.stepperCaption}>Email to Verification to New Password</Text>
-        </View>
-
-        {!!errorMessage && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle-outline" size={16} color="#b91c1c" />
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          </View>
-        )}
-
-        <View style={[styles.stepCard, step === 1 && styles.stepActive, step > 1 && styles.stepDone]}>
-          <Text style={styles.stepTitle}>Step 1: Enter Email and Send Code</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              setStep(1);
-              setCode('');
-              setNewPassword('');
-              setConfirmPassword('');
-            }}
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSendCode} disabled={sendLoading}>
-            {sendLoading ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.primaryBtnText}>Send Code</Text>}
-          </TouchableOpacity>
-          {!!sendStatus && <Text style={styles.okText}>{sendStatus}</Text>}
-        </View>
-
-        <View style={[styles.stepCard, step === 2 && styles.stepActive, step > 2 && styles.stepDone, step < 2 && styles.stepLocked]}>
-          <Text style={styles.stepTitle}>Step 2: Verify Email Code</Text>
-          <TextInput
-            style={styles.input}
-            value={code}
-            onChangeText={setCode}
-            placeholder="6-digit verification code"
-            keyboardType="numeric"
-            maxLength={6}
-            editable={step >= 2}
-          />
-          <TouchableOpacity
-            style={[styles.secondaryBtn, step < 2 && styles.disabledButton]}
-            onPress={handleVerifyCode}
-            disabled={step < 2 || verifyLoading}
-          >
-            {verifyLoading ? <ActivityIndicator size="small" color="#111827" /> : <Text style={styles.secondaryBtnText}>Verify Code</Text>}
-          </TouchableOpacity>
-          {!!verifyStatus && <Text style={styles.okText}>{verifyStatus}</Text>}
-        </View>
-
-        <View style={[styles.stepCard, step === 3 && styles.stepActive, step < 3 && styles.stepLocked]}>
-          <Text style={styles.stepTitle}>Step 3: Set New Password</Text>
-
-          <TextInput
-            style={styles.input}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            placeholder="New password"
-            secureTextEntry
-            autoCapitalize="none"
-            editable={step >= 3}
-          />
-          <TextInput
-            style={[styles.input, styles.mt8]}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            placeholder="Confirm new password"
-            secureTextEntry
-            autoCapitalize="none"
-            editable={step >= 3}
-          />
-
-          <View style={styles.rulesWrap}>
-            <Text style={[styles.ruleText, rules.length && styles.ruleValid]}>At least 8 characters</Text>
-            <Text style={[styles.ruleText, rules.upper && styles.ruleValid]}>At least one uppercase letter</Text>
-            <Text style={[styles.ruleText, rules.lower && styles.ruleValid]}>At least one lowercase letter</Text>
-            <Text style={[styles.ruleText, rules.number && styles.ruleValid]}>At least one number</Text>
-            <Text style={[styles.ruleText, rules.special && styles.ruleValid]}>At least one special character</Text>
-            <Text style={[styles.ruleText, passwordsMatch && styles.ruleValid]}>Passwords match</Text>
+            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.9}>
+              <Text style={styles.navGhostText}>Login</Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={[styles.primaryBtn, step < 3 && styles.disabledButton]}
-            onPress={handleResetPassword}
-            disabled={step < 3 || resetLoading}
+          <LinearGradient
+            colors={['#ef5350', '#e53935', '#b71c1c']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerCard}
           >
-            {resetLoading ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.primaryBtnText}>Reset Password</Text>}
-          </TouchableOpacity>
+            <Image source={sideLogo} style={styles.brandLogo} resizeMode="contain" />
+            <Text style={styles.headerTitle}>Reset Password</Text>
+            <Text style={styles.headerSub}>Complete the mobile recovery flow in three quick steps.</Text>
+          </LinearGradient>
 
-          {!!resetStatus && <Text style={styles.okText}>{resetStatus}</Text>}
-        </View>
-      </ScrollView>
+          <View style={styles.stepperWrap}>
+            <View style={styles.stepperRow}>
+              <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]}>
+                <Text style={[styles.stepDotText, step >= 1 && styles.stepDotTextActive]}>1</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]}>
+                <Text style={[styles.stepDotText, step >= 2 && styles.stepDotTextActive]}>2</Text>
+              </View>
+              <View style={styles.stepLine} />
+              <View style={[styles.stepDot, step >= 3 && styles.stepDotActive]}>
+                <Text style={[styles.stepDotText, step >= 3 && styles.stepDotTextActive]}>3</Text>
+              </View>
+            </View>
+            <Text style={styles.stepperCaption}>Email → Verify code → Set new password</Text>
+          </View>
+
+          {!!errorMessage && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle-outline" size={16} color="#b91c1c" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
+
+          <View style={[styles.card, step === 1 && styles.cardActive, step > 1 && styles.cardDone]}>
+            <Text style={styles.cardTitle}>Step 1: Send reset code</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                setStep(1);
+                setCode('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSendCode} disabled={sendLoading}>
+              {sendLoading ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.primaryBtnText}>Send Code</Text>}
+            </TouchableOpacity>
+            {!!sendStatus && <Text style={styles.okText}>{sendStatus}</Text>}
+          </View>
+
+          <View style={[styles.card, step === 2 && styles.cardActive, step > 2 && styles.cardDone, step < 2 && styles.cardLocked]}>
+            <Text style={styles.cardTitle}>Step 2: Verify code</Text>
+            <TextInput
+              style={styles.input}
+              value={code}
+              onChangeText={setCode}
+              placeholder="6-digit verification code"
+              keyboardType="numeric"
+              maxLength={6}
+              editable={step >= 2}
+            />
+            <TouchableOpacity
+              style={[styles.secondaryBtn, step < 2 && styles.disabledBtn]}
+              onPress={handleVerifyCode}
+              disabled={step < 2 || verifyLoading}
+            >
+              {verifyLoading ? <ActivityIndicator size="small" color="#111827" /> : <Text style={styles.secondaryBtnText}>Verify Code</Text>}
+            </TouchableOpacity>
+            {!!verifyStatus && <Text style={styles.okText}>{verifyStatus}</Text>}
+          </View>
+
+          <View style={[styles.card, step === 3 && styles.cardActive, step < 3 && styles.cardLocked]}>
+            <Text style={styles.cardTitle}>Step 3: Set new password</Text>
+
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="New password"
+                secureTextEntry={!showNewPassword}
+                autoCapitalize="none"
+                editable={step >= 3}
+              />
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowNewPassword((value) => !value)}>
+                <Ionicons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.passwordWrap, styles.mt8]}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm new password"
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                editable={step >= 3}
+              />
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirmPassword((value) => !value)}>
+                <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.rulesWrap}>
+              <Text style={[styles.ruleText, rules.length && styles.ruleOk]}>At least 8 characters</Text>
+              <Text style={[styles.ruleText, rules.upper && styles.ruleOk]}>At least one uppercase letter</Text>
+              <Text style={[styles.ruleText, rules.lower && styles.ruleOk]}>At least one lowercase letter</Text>
+              <Text style={[styles.ruleText, rules.number && styles.ruleOk]}>At least one number</Text>
+              <Text style={[styles.ruleText, rules.special && styles.ruleOk]}>At least one special character</Text>
+              <Text style={[styles.ruleText, passwordsMatch && styles.ruleOk]}>Passwords match</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, step < 3 && styles.disabledBtn]}
+              onPress={handleResetPassword}
+              disabled={step < 3 || resetLoading}
+            >
+              {resetLoading ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.primaryBtnText}>Reset Password</Text>}
+            </TouchableOpacity>
+
+            {!!resetStatus && <Text style={styles.okText}>{resetStatus}</Text>}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -271,65 +282,61 @@ export default function ForgotPasswordScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f8fc',
+    backgroundColor: '#f4f7fc',
   },
-  pageWrap: {
+  flexOne: {
+    flex: 1,
+  },
+  scrollWrap: {
     paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 22,
+    paddingTop: 10,
+    paddingBottom: 24,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  navBtn: {
+  navGhostBtn: {
     borderWidth: 1,
     borderColor: '#d8e1ec',
     borderRadius: 999,
     backgroundColor: '#ffffff',
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  navBtnDark: {
-    borderColor: '#111827',
-    backgroundColor: '#111827',
-  },
-  navBtnText: {
+  navGhostText: {
     marginLeft: 4,
     color: '#111827',
     fontSize: 12,
     fontWeight: '700',
   },
-  navBtnDarkText: {
-    marginLeft: 0,
-    color: '#ffffff',
-  },
-  headerPanel: {
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
+  headerCard: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     marginBottom: 10,
   },
-  headerLogo: {
-    width: 84,
-    height: 40,
-    borderRadius: 6,
+  brandLogo: {
+    width: 98,
+    height: 48,
+    borderRadius: 8,
     backgroundColor: '#ffffff',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  heading: {
-    fontSize: 30,
-    fontWeight: '800',
+  headerTitle: {
     color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 3,
   },
-  subHeading: {
-    marginTop: 4,
-    marginBottom: 2,
+  headerSub: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '600',
   },
   stepperWrap: {
     borderWidth: 1,
@@ -345,12 +352,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepperLine: {
+  stepLine: {
     width: 28,
     height: 2,
     backgroundColor: '#e2e8f0',
   },
-  stepperDot: {
+  stepDot: {
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -360,16 +367,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#ffffff',
   },
-  stepperDotActive: {
+  stepDotActive: {
     borderColor: '#e53935',
     backgroundColor: '#fff1f1',
   },
-  stepperDotText: {
+  stepDotText: {
     color: '#64748b',
     fontSize: 11,
     fontWeight: '800',
   },
-  stepperDotTextActive: {
+  stepDotTextActive: {
     color: '#b91c1c',
   },
   stepperCaption: {
@@ -382,10 +389,10 @@ const styles = StyleSheet.create({
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: '#fecaca',
-    backgroundColor: '#ffebee',
-    borderRadius: 12,
+    backgroundColor: '#fff1f2',
     paddingHorizontal: 10,
     paddingVertical: 8,
     marginBottom: 10,
@@ -397,33 +404,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
-  stepCard: {
+  card: {
     borderWidth: 1,
     borderColor: '#d8e1ec',
     borderRadius: 14,
     padding: 12,
     marginBottom: 10,
     backgroundColor: '#ffffff',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 1,
   },
-  stepActive: {
+  cardActive: {
     borderColor: '#f3b3b1',
   },
-  stepDone: {
+  cardDone: {
     borderColor: '#86efac',
     backgroundColor: '#f7fff9',
   },
-  stepLocked: {
+  cardLocked: {
     opacity: 0.58,
   },
-  stepTitle: {
+  cardTitle: {
+    color: '#e53935',
     fontSize: 12,
     fontWeight: '800',
-    color: '#e53935',
     textTransform: 'uppercase',
     letterSpacing: 0.7,
     marginBottom: 9,
@@ -437,6 +439,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     color: '#111827',
     fontSize: 14,
+  },
+  passwordWrap: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 42,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    padding: 3,
   },
   mt8: {
     marginTop: 8,
@@ -469,7 +483,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  disabledButton: {
+  disabledBtn: {
     opacity: 0.5,
   },
   okText: {
@@ -487,7 +501,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 3,
   },
-  ruleValid: {
+  ruleOk: {
     color: '#166534',
     fontWeight: '700',
   },

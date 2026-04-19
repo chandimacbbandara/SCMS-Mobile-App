@@ -58,6 +58,12 @@ function getMailConfig() {
   };
 }
 
+function isGmailConfig(config) {
+  const host = String(config.host || '').toLowerCase();
+  const username = String(config.username || '').toLowerCase();
+  return host.includes('gmail.com') || username.endsWith('@gmail.com');
+}
+
 function isMailConfigured(config = getMailConfig()) {
   if (!config.host || Number.isNaN(config.port) || !config.from) {
     return false;
@@ -72,6 +78,7 @@ function isMailConfigured(config = getMailConfig()) {
 
 let cachedTransporter = null;
 let cachedTransportKey = '';
+let cachedVerifiedTransportKey = '';
 
 function getTransporter(config) {
   const transportKey = [
@@ -84,12 +91,25 @@ function getTransporter(config) {
   ].join(':');
 
   if (!cachedTransporter || cachedTransportKey !== transportKey) {
+    const gmailConfig = isGmailConfig(config);
+
     const transportOptions = {
-      host: config.host,
-      port: config.port,
       secure: config.secure,
       requireTLS: config.startTlsEnabled,
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      tls: {
+        minVersion: 'TLSv1.2',
+      },
     };
+
+    if (gmailConfig) {
+      transportOptions.service = 'gmail';
+    } else {
+      transportOptions.host = config.host;
+      transportOptions.port = config.port;
+    }
 
     if (config.smtpAuth) {
       transportOptions.auth = {
@@ -100,9 +120,20 @@ function getTransporter(config) {
 
     cachedTransporter = nodemailer.createTransport(transportOptions);
     cachedTransportKey = transportKey;
+    cachedVerifiedTransportKey = '';
   }
 
   return cachedTransporter;
+}
+
+async function getVerifiedTransporter(config) {
+  const transporter = getTransporter(config);
+  if (cachedVerifiedTransportKey !== cachedTransportKey) {
+    await transporter.verify();
+    cachedVerifiedTransportKey = cachedTransportKey;
+  }
+
+  return transporter;
 }
 
 async function sendMail({ to, subject, text, html }) {
@@ -112,15 +143,29 @@ async function sendMail({ to, subject, text, html }) {
     throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and MAIL_FROM.');
   }
 
-  const transporter = getTransporter(config);
+  const transporter = await getVerifiedTransporter(config);
 
-  return transporter.sendMail({
+  const info = await transporter.sendMail({
     from: config.from,
     to,
     subject,
     text,
     html,
   });
+
+  if (!Array.isArray(info.accepted) || info.accepted.length === 0) {
+    throw new Error('SMTP did not accept recipient address.');
+  }
+
+  if (Array.isArray(info.rejected) && info.rejected.length > 0) {
+    throw new Error(`SMTP rejected recipient(s): ${info.rejected.join(', ')}`);
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[MAIL] delivered messageId=${info.messageId || 'n/a'} to=${info.accepted.join(', ')}`);
+  }
+
+  return info;
 }
 
 module.exports = {
