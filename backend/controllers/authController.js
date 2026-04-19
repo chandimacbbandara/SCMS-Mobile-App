@@ -4,12 +4,40 @@ const path = require('path');
 const Student = require('../models/Student');
 const { isMailConfigured, sendMail } = require('../utils/mailer');
 
+const OWNER_EMAIL = 'admin@akbinstitute.edu.lk';
+const OWNER_PASSWORD = 'akb@18789691';
+
 const registerCodeStore = new Map();
 
-function createToken(studentId) {
-  return jwt.sign({ id: studentId }, process.env.JWT_SECRET || 'dev_secret_change_me', {
+function createToken(payload) {
+  return jwt.sign(payload, process.env.JWT_SECRET || 'dev_secret_change_me', {
     expiresIn: '7d',
   });
+}
+
+function createStudentToken(studentId) {
+  return createToken({ id: String(studentId), role: 'student', type: 'student' });
+}
+
+function createOwnerToken(email) {
+  return createToken({
+    id: 'owner',
+    role: 'owner',
+    type: 'owner',
+    email: normalizeEmail(email),
+  });
+}
+
+function getOwnerUser() {
+  return {
+    id: 'owner',
+    firstName: 'Owner',
+    lastName: 'Admin',
+    email: OWNER_EMAIL,
+    studentId: 'OWNER',
+    role: 'owner',
+    studentIdPhoto: null,
+  };
 }
 
 function sanitizeUser(student) {
@@ -229,7 +257,7 @@ async function register(req, res) {
 
     registerCodeStore.delete(email);
 
-    const token = createToken(student._id);
+    const token = createStudentToken(student._id);
 
     return res.status(201).json({
       status: 'ok',
@@ -251,6 +279,18 @@ async function login(req, res) {
       return res.status(400).json({ status: 'error', message: 'Email and password are required' });
     }
 
+    if (email === normalizeEmail(OWNER_EMAIL) && password === OWNER_PASSWORD) {
+      const ownerUser = getOwnerUser();
+      const token = createOwnerToken(ownerUser.email);
+
+      return res.json({
+        status: 'ok',
+        message: 'Owner login successful',
+        token,
+        user: ownerUser,
+      });
+    }
+
     const student = await Student.findOne({ email });
     if (!student) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
@@ -261,7 +301,7 @@ async function login(req, res) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
     }
 
-    const token = createToken(student._id);
+    const token = createStudentToken(student._id);
 
     return res.json({
       status: 'ok',
@@ -430,6 +470,54 @@ async function getMe(req, res) {
   });
 }
 
+async function getOwnerDashboard(req, res) {
+  try {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [
+      totalStudents,
+      studentsWithPhoto,
+      newStudentsThisMonth,
+      latestStudentDoc,
+    ] = await Promise.all([
+      Student.countDocuments({}),
+      Student.countDocuments({ studentIdPhoto: { $nin: [null, ''] } }),
+      Student.countDocuments({ createdAt: { $gte: startOfMonth } }),
+      Student.findOne({}).sort({ createdAt: -1 }).select('firstName lastName email studentId role studentIdPhoto createdAt'),
+    ]);
+
+    const studentsWithoutPhoto = Math.max(totalStudents - studentsWithPhoto, 0);
+
+    const latestStudent = latestStudentDoc
+      ? {
+        id: latestStudentDoc._id,
+        firstName: latestStudentDoc.firstName,
+        lastName: latestStudentDoc.lastName,
+        email: latestStudentDoc.email,
+        studentId: latestStudentDoc.studentId,
+        role: latestStudentDoc.role,
+        studentIdPhoto: latestStudentDoc.studentIdPhoto,
+        createdAt: latestStudentDoc.createdAt,
+      }
+      : null;
+
+    return res.json({
+      status: 'ok',
+      dashboard: {
+        totalStudents,
+        studentsWithPhoto,
+        studentsWithoutPhoto,
+        newStudentsThisMonth,
+        latestStudent,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Failed to load owner dashboard' });
+  }
+}
+
 function uploadStudentPhoto(req, res, next) {
   if (!req.file) {
     return next();
@@ -459,5 +547,6 @@ module.exports = {
   verifyForgotCode,
   resetForgotPassword,
   getMe,
+  getOwnerDashboard,
   uploadStudentPhoto,
 };

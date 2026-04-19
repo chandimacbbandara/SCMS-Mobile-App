@@ -11,9 +11,10 @@ const {
   verifyForgotCode,
   resetForgotPassword,
   getMe,
+  getOwnerDashboard,
   uploadStudentPhoto,
 } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireOwner } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -40,6 +41,7 @@ router.post('/register', upload.single('studentIdPhoto'), uploadStudentPhoto, re
 
 router.post('/login', login);
 router.get('/me', protect, getMe);
+router.get('/owner/dashboard', protect, requireOwner, getOwnerDashboard);
 
 router.post('/forgot-password/send-code', sendForgotCode);
 router.post('/forgot-password/verify-code', verifyForgotCode);

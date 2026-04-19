@@ -7,6 +7,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import StudentDashboardScreen from '../screens/StudentDashboardScreen';
+import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -21,7 +22,8 @@ function SplashLoader() {
 }
 
 export default function AppNavigator() {
-  const { initializing, isAuthenticated } = useAuth();
+  const { initializing, isAuthenticated, user } = useAuth();
+  const isOwner = user?.role === 'owner';
 
   if (initializing) {
     return <SplashLoader />;
@@ -30,8 +32,8 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        key={isAuthenticated ? 'auth-stack' : 'guest-stack'}
-        initialRouteName={isAuthenticated ? 'StudentDashboard' : 'Home'}
+        key={isAuthenticated ? (isOwner ? 'owner-stack' : 'student-stack') : 'guest-stack'}
+        initialRouteName={isAuthenticated ? (isOwner ? 'OwnerDashboard' : 'StudentDashboard') : 'Home'}
         screenOptions={{
           headerTintColor: '#111827',
           headerTitleStyle: {
@@ -55,7 +57,7 @@ export default function AppNavigator() {
               name="Login"
               component={LoginScreen}
               options={{
-                title: 'Student Login',
+                title: 'Login',
                 headerShown: false,
               }}
             />
@@ -77,14 +79,25 @@ export default function AppNavigator() {
             />
           </>
         ) : (
-          <Stack.Screen
-            name="StudentDashboard"
-            component={StudentDashboardScreen}
-            options={{
-              title: 'Student Dashboard',
-              headerShown: false,
-            }}
-          />
+          isOwner ? (
+            <Stack.Screen
+              name="OwnerDashboard"
+              component={OwnerDashboardScreen}
+              options={{
+                title: 'Owner Dashboard',
+                headerShown: false,
+              }}
+            />
+          ) : (
+            <Stack.Screen
+              name="StudentDashboard"
+              component={StudentDashboardScreen}
+              options={{
+                title: 'Student Dashboard',
+                headerShown: false,
+              }}
+            />
+          )
         )}
       </Stack.Navigator>
     </NavigationContainer>
