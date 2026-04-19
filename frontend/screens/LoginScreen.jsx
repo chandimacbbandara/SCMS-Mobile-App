@@ -47,19 +47,12 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.flexOne}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.pageWrap} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.flexOne} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
           <View style={styles.topRow}>
-            <TouchableOpacity
-              style={styles.backToHome}
-              onPress={() => navigation.navigate('Home')}
-              activeOpacity={0.9}
-            >
+            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Home')} activeOpacity={0.9}>
               <Ionicons name="chevron-back" size={16} color="#111827" />
-              <Text style={styles.backToHomeText}>Home</Text>
+              <Text style={styles.navGhostText}>Back</Text>
             </TouchableOpacity>
           </View>
 
@@ -67,32 +60,16 @@ export default function LoginScreen({ navigation }) {
             colors={['#ef5350', '#e53935', '#b71c1c']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.brandPanel}
+            style={styles.brandCard}
           >
-            <View style={styles.panelGlow} />
             <Image source={sideLogo} style={styles.brandLogo} resizeMode="contain" />
             <Text style={styles.brandTitle}>Welcome Back</Text>
-            <Text style={styles.brandSubtitle}>
-              Sign in to manage student concerns and track support progress in real time.
-            </Text>
-
-            <View style={styles.featureItem}>
-              <Ionicons name="paper-plane-outline" size={15} color="#ffffff" />
-              <Text style={styles.featureText}>Submit and track concerns</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="chatbubbles-outline" size={15} color="#ffffff" />
-              <Text style={styles.featureText}>Get real-time admin replies</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="shield-checkmark-outline" size={15} color="#ffffff" />
-              <Text style={styles.featureText}>Secure and private portal</Text>
-            </View>
+            <Text style={styles.brandSub}>Sign in and continue managing student concerns on mobile.</Text>
           </LinearGradient>
 
-          <View style={styles.formPanel}>
-            <Text style={styles.heading}>Sign In</Text>
-            <Text style={styles.subHeading}>Enter your credentials to continue</Text>
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>Sign In</Text>
+            <Text style={styles.formSub}>Use your student, admin, or owner account credentials</Text>
 
             {!!errorMessage && (
               <View style={styles.errorBanner}>
@@ -101,10 +78,10 @@ export default function LoginScreen({ navigation }) {
               </View>
             )}
 
-            <View style={styles.formGroup}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
               <View style={styles.inputWrap}>
-                <Ionicons name="mail-outline" size={17} color="#9ca3af" style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={17} color="#94a3b8" style={styles.inputIcon} />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
@@ -116,10 +93,10 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputWrap}>
-                <Ionicons name="lock-closed-outline" size={17} color="#9ca3af" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={17} color="#94a3b8" style={styles.inputIcon} />
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
@@ -128,38 +105,31 @@ export default function LoginScreen({ navigation }) {
                   autoCapitalize="none"
                   style={[styles.input, styles.passwordInput]}
                 />
-                <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.toggleBtn}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={18}
-                    color="#9ca3af"
-                  />
+                <TouchableOpacity onPress={() => setShowPassword((value) => !value)} style={styles.eyeBtn}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#94a3b8" />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ForgotPassword')}
-              style={styles.forgotWrap}
-            >
-              <Text style={styles.forgotText}>Forgot password?</Text>
+            <TouchableOpacity style={styles.inlineLinkWrap} onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.inlineLink}>Forgot password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleLogin} disabled={loading} activeOpacity={0.9}>
               {loading ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <>
                   <Ionicons name="log-in-outline" size={17} color="#ffffff" />
-                  <Text style={styles.loginBtnText}>Sign In</Text>
+                  <Text style={styles.primaryBtnText}>Sign In</Text>
                 </>
               )}
             </TouchableOpacity>
 
-            <View style={styles.inlineRow}>
-              <Text style={styles.inlineHint}>Don't have an account?</Text>
+            <View style={styles.bottomRow}>
+              <Text style={styles.bottomHint}>New student?</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.inlineLink}>Create one</Text>
+                <Text style={styles.bottomLink}>Create account</Text>
               </TouchableOpacity>
             </View>
 
@@ -174,14 +144,14 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f8fc',
+    backgroundColor: '#f4f7fc',
   },
   flexOne: {
     flex: 1,
   },
-  pageWrap: {
+  scrollWrap: {
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingTop: 10,
     paddingBottom: 24,
   },
   topRow: {
@@ -189,130 +159,108 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     marginBottom: 10,
   },
-  backToHome: {
+  navGhostBtn: {
     borderWidth: 1,
     borderColor: '#d8e1ec',
     borderRadius: 999,
     backgroundColor: '#ffffff',
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  backToHomeText: {
+  navGhostText: {
     marginLeft: 4,
     color: '#111827',
     fontSize: 12,
     fontWeight: '700',
   },
-  brandPanel: {
+  brandCard: {
     borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     marginBottom: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  panelGlow: {
-    position: 'absolute',
-    right: -34,
-    top: -34,
-    width: 130,
-    height: 130,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   brandLogo: {
-    width: 110,
-    height: 52,
-    marginBottom: 14,
+    width: 98,
+    height: 48,
     borderRadius: 8,
     backgroundColor: '#ffffff',
-    padding: 4,
+    marginBottom: 12,
   },
   brandTitle: {
     color: '#ffffff',
-    fontSize: 27,
-    fontWeight: '800',
-    marginBottom: 5,
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 4,
   },
-  brandSubtitle: {
+  brandSub: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 13,
-    lineHeight: 21,
-    marginBottom: 12,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  featureText: {
-    marginLeft: 8,
-    color: '#ffffff',
-    fontSize: 13,
+    lineHeight: 20,
     fontWeight: '600',
   },
-  formPanel: {
-    borderRadius: 20,
+  formCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e4e9f2',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
+    shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 2,
   },
-  heading: {
-    fontSize: 28,
+  formTitle: {
     color: '#111827',
-    fontWeight: '800',
+    fontSize: 27,
+    fontWeight: '900',
   },
-  subHeading: {
+  formSub: {
+    color: '#64748b',
     fontSize: 13,
-    color: '#6b7280',
-    marginTop: 3,
-    marginBottom: 14,
+    marginTop: 2,
+    marginBottom: 12,
+    fontWeight: '600',
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#ffebee',
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: '#fecaca',
-    marginBottom: 12,
+    backgroundColor: '#fff1f2',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
   },
   errorText: {
-    marginLeft: 7,
+    marginLeft: 6,
     color: '#b91c1c',
     fontSize: 12,
     fontWeight: '700',
+    flex: 1,
   },
-  formGroup: {
-    marginBottom: 12,
+  inputGroup: {
+    marginBottom: 10,
   },
   label: {
-    marginBottom: 6,
-    color: '#374151',
-    fontWeight: '700',
+    color: '#334155',
     fontSize: 12,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    marginBottom: 6,
   },
   inputWrap: {
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#d8e1ec',
-    borderRadius: 13,
-    backgroundColor: '#ffffff',
     minHeight: 50,
     justifyContent: 'center',
+    backgroundColor: '#ffffff',
   },
   inputIcon: {
     position: 'absolute',
@@ -320,62 +268,64 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   input: {
+    color: '#111827',
+    fontSize: 14,
     paddingLeft: 40,
     paddingRight: 12,
-    fontSize: 14,
-    color: '#111827',
   },
   passwordInput: {
     paddingRight: 44,
   },
-  toggleBtn: {
+  eyeBtn: {
     position: 'absolute',
-    right: 12,
-    padding: 4,
+    right: 11,
+    padding: 5,
   },
-  forgotWrap: {
+  inlineLinkWrap: {
     alignSelf: 'flex-end',
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  forgotText: {
+  inlineLink: {
     color: '#c62828',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
-  loginBtn: {
-    borderRadius: 13,
-    backgroundColor: '#e53935',
-    minHeight: 52,
+  primaryBtn: {
+    borderRadius: 12,
+    minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    backgroundColor: '#e53935',
   },
-  loginBtnText: {
+  primaryBtnText: {
     marginLeft: 7,
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800',
   },
-  inlineRow: {
+  bottomRow: {
     marginTop: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  inlineHint: {
-    color: '#6b7280',
+  bottomHint: {
+    color: '#64748b',
     fontSize: 13,
-    marginRight: 6,
+    fontWeight: '600',
+    marginRight: 5,
   },
-  inlineLink: {
+  bottomLink: {
     color: '#e53935',
     fontSize: 13,
     fontWeight: '800',
   },
   apiHint: {
-    marginTop: 12,
-    color: '#94a3b8',
+    marginTop: 10,
+    color: '#9ca3af',
     fontSize: 11,
     textAlign: 'center',
+    fontWeight: '600',
   },
 });

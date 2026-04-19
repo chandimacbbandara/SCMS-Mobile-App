@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,11 +34,7 @@ function allRulesValid(rules) {
 }
 
 export default function RegisterScreen({ navigation }) {
-  const {
-    sendRegisterCode,
-    verifyRegisterCode,
-    register,
-  } = useAuth();
+  const { sendRegisterCode, verifyRegisterCode, register } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -51,11 +49,13 @@ export default function RegisterScreen({ navigation }) {
   const [sendCodeMessage, setSendCodeMessage] = useState('');
   const [confirmCodeMessage, setConfirmCodeMessage] = useState('');
   const [generalError, setGeneralError] = useState('');
-  const [devCode, setDevCode] = useState('');
 
   const [sendCodeLoading, setSendCodeLoading] = useState(false);
   const [confirmCodeLoading, setConfirmCodeLoading] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const rules = useMemo(() => passwordRules(password), [password]);
   const passwordMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
@@ -101,10 +101,8 @@ export default function RegisterScreen({ navigation }) {
     try {
       const response = await sendRegisterCode(email.trim(), firstName.trim());
       setSendCodeMessage(response.message || 'Verification code sent');
-      setDevCode(response.devCode || '');
     } catch (error) {
       setSendCodeMessage(error.message || 'Could not send verification code');
-      setDevCode('');
     } finally {
       setSendCodeLoading(false);
     }
@@ -177,47 +175,29 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <TouchableOpacity
-            style={styles.topNavBtn}
-            onPress={() => navigation.navigate('Home')}
-            activeOpacity={0.9}
+      <KeyboardAvoidingView style={styles.flexOne} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
+          <View style={styles.topRow}>
+            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Home')} activeOpacity={0.9}>
+              <Ionicons name="chevron-back" size={16} color="#111827" />
+              <Text style={styles.navGhostText}>Back</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.9}>
+              <Text style={styles.navGhostText}>Login</Text>
+            </TouchableOpacity>
+          </View>
+
+          <LinearGradient
+            colors={['#ef5350', '#e53935', '#b71c1c']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerCard}
           >
-            <Ionicons name="chevron-back" size={16} color="#111827" />
-            <Text style={styles.topNavBtnText}>Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.topNavBtn, styles.topNavBtnDark]}
-            onPress={() => navigation.navigate('Login')}
-            activeOpacity={0.9}
-          >
-            <Text style={[styles.topNavBtnText, styles.topNavBtnDarkText]}>Login</Text>
-          </TouchableOpacity>
-        </View>
-
-        <LinearGradient
-          colors={['#ef5350', '#e53935', '#b71c1c']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.leftPanel}
-        >
-          <Image source={sideLogo} style={styles.leftLogo} resizeMode="contain" />
-          <Text style={styles.leftTitle}>Join Us Today</Text>
-          <Text style={styles.leftSubtitle}>
-            Create your student account and start managing academic concerns.
-          </Text>
-
-          <View style={styles.stepRow}><Text style={styles.stepNumber}>1</Text><Text style={styles.stepText}>Fill personal details</Text></View>
-          <View style={styles.stepRow}><Text style={styles.stepNumber}>2</Text><Text style={styles.stepText}>Verify email code</Text></View>
-          <View style={styles.stepRow}><Text style={styles.stepNumber}>3</Text><Text style={styles.stepText}>Set secure password</Text></View>
-          <View style={styles.stepRow}><Text style={styles.stepNumber}>4</Text><Text style={styles.stepText}>Upload ID photo</Text></View>
-        </LinearGradient>
-
-        <View style={styles.formPanel}>
-          <Text style={styles.heading}>Create Account</Text>
-          <Text style={styles.subHeading}>Complete the form below to register as a student.</Text>
+            <Image source={sideLogo} style={styles.brandLogo} resizeMode="contain" />
+            <Text style={styles.headerTitle}>Create Student Account</Text>
+            <Text style={styles.headerSub}>Verify your email and register with your student details.</Text>
+          </LinearGradient>
 
           {!!generalError && (
             <View style={styles.errorBanner}>
@@ -226,50 +206,44 @@ export default function RegisterScreen({ navigation }) {
             </View>
           )}
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Personal Details</Text>
 
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, styles.flexOne]}>
-                <Text style={styles.label}>First Name</Text>
+            <View style={styles.rowTwo}>
+              <View style={[styles.inputGroup, styles.flexOne]}>
+                <Text style={styles.label}>First name</Text>
                 <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" />
               </View>
-              <View style={[styles.formGroup, styles.flexOne]}>
-                <Text style={styles.label}>Last Name</Text>
+              <View style={[styles.inputGroup, styles.flexOne]}>
+                <Text style={styles.label}>Last name</Text>
                 <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" />
               </View>
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <View style={styles.actionInputRow}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inlineRow}>
                 <TextInput
                   style={[styles.input, styles.flexOne]}
                   value={email}
                   onChangeText={(value) => {
                     setEmail(value);
                     setEmailVerified(false);
-                    setDevCode('');
                   }}
                   placeholder="you@example.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={handleSendCode} style={styles.inlineButton} disabled={sendCodeLoading}>
-                  {sendCodeLoading ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.inlineButtonText}>Send</Text>
-                  )}
+                <TouchableOpacity style={styles.inlineBtnPrimary} onPress={handleSendCode} disabled={sendCodeLoading}>
+                  {sendCodeLoading ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.inlineBtnPrimaryText}>Send</Text>}
                 </TouchableOpacity>
               </View>
-              {!!sendCodeMessage && <Text style={styles.statusText}>{sendCodeMessage}</Text>}
-              {!!devCode && <Text style={styles.devText}>Dev code: {devCode}</Text>}
+              {!!sendCodeMessage && <Text style={styles.inlineStatus}>{sendCodeMessage}</Text>}
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Email Verification Code</Text>
-              <View style={styles.actionInputRow}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Verification code</Text>
+              <View style={styles.inlineRow}>
                 <TextInput
                   style={[styles.input, styles.flexOne]}
                   value={code}
@@ -278,85 +252,86 @@ export default function RegisterScreen({ navigation }) {
                   keyboardType="numeric"
                   maxLength={6}
                 />
-                <TouchableOpacity
-                  onPress={handleVerifyCode}
-                  style={[styles.inlineButton, styles.inlineButtonSecondary]}
-                  disabled={confirmCodeLoading}
-                >
-                  {confirmCodeLoading ? (
-                    <ActivityIndicator size="small" color="#e53935" />
-                  ) : (
-                    <Text style={styles.inlineSecondaryText}>Confirm</Text>
-                  )}
+                <TouchableOpacity style={styles.inlineBtnGhost} onPress={handleVerifyCode} disabled={confirmCodeLoading}>
+                  {confirmCodeLoading ? <ActivityIndicator size="small" color="#e53935" /> : <Text style={styles.inlineBtnGhostText}>Verify</Text>}
                 </TouchableOpacity>
               </View>
               {!!confirmCodeMessage && (
-                <Text style={[styles.statusText, emailVerified ? styles.statusOk : styles.statusError]}>
+                <Text style={[styles.inlineStatus, emailVerified ? styles.okStatus : styles.errorStatus]}>
                   {confirmCodeMessage}
                 </Text>
               )}
             </View>
 
-            <View style={styles.formGroup}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Student ID</Text>
               <TextInput style={styles.input} value={studentId} onChangeText={setStudentId} placeholder="e.g. STU2024001" />
             </View>
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Security</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Security</Text>
 
-            <View style={styles.formGroup}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Create password"
-                secureTextEntry
-                autoCapitalize="none"
-              />
+              <View style={styles.passwordWrap}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Create password"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword((value) => !value)}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Re-enter password"
-                secureTextEntry
-                autoCapitalize="none"
-              />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Confirm password</Text>
+              <View style={styles.passwordWrap}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm password"
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirmPassword((value) => !value)}>
+                  <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <View style={styles.rulesWrap}>
-              <Text style={[styles.ruleText, rules.length && styles.ruleValid]}>At least 8 characters</Text>
-              <Text style={[styles.ruleText, rules.upper && styles.ruleValid]}>At least one uppercase letter</Text>
-              <Text style={[styles.ruleText, rules.lower && styles.ruleValid]}>At least one lowercase letter</Text>
-              <Text style={[styles.ruleText, rules.number && styles.ruleValid]}>At least one number</Text>
-              <Text style={[styles.ruleText, rules.special && styles.ruleValid]}>At least one special character</Text>
-              <Text style={[styles.ruleText, passwordMatch && styles.ruleValid]}>Passwords match</Text>
+            <View style={styles.ruleWrap}>
+              <Text style={[styles.ruleText, rules.length && styles.ruleOk]}>At least 8 characters</Text>
+              <Text style={[styles.ruleText, rules.upper && styles.ruleOk]}>At least one uppercase letter</Text>
+              <Text style={[styles.ruleText, rules.lower && styles.ruleOk]}>At least one lowercase letter</Text>
+              <Text style={[styles.ruleText, rules.number && styles.ruleOk]}>At least one number</Text>
+              <Text style={[styles.ruleText, rules.special && styles.ruleOk]}>At least one special character</Text>
+              <Text style={[styles.ruleText, passwordMatch && styles.ruleOk]}>Passwords match</Text>
             </View>
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Student ID Verification</Text>
-
-            <TouchableOpacity style={styles.photoPicker} onPress={pickStudentPhoto}>
-              <Ionicons name="cloud-upload-outline" size={19} color="#e53935" />
-              <Text style={styles.photoPickerText}>Upload Student ID Card Photo</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Student ID Photo</Text>
+            <TouchableOpacity style={styles.uploadBtn} onPress={pickStudentPhoto} activeOpacity={0.9}>
+              <Ionicons name="cloud-upload-outline" size={18} color="#e53935" />
+              <Text style={styles.uploadBtnText}>{photoFile ? 'Replace ID photo' : 'Upload ID photo'}</Text>
             </TouchableOpacity>
 
             {photoFile?.uri && (
-              <View style={styles.previewWrap}>
+              <View style={styles.previewBox}>
                 <Image source={{ uri: photoFile.uri }} style={styles.previewImage} />
-                <Text style={styles.previewText}>{photoFile.fileName}</Text>
+                <Text style={styles.previewName}>{photoFile.fileName}</Text>
               </View>
             )}
           </View>
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleRegister} disabled={registerLoading}>
+          <TouchableOpacity style={styles.submitBtn} onPress={handleRegister} disabled={registerLoading} activeOpacity={0.9}>
             {registerLoading ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
@@ -367,14 +342,14 @@ export default function RegisterScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <View style={styles.footerRow}>
-            <Text style={styles.footerHint}>Already have an account?</Text>
+          <View style={styles.bottomRow}>
+            <Text style={styles.bottomHint}>Already have an account?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={styles.bottomLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -382,121 +357,71 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f8fc',
+    backgroundColor: '#f4f7fc',
   },
-  contentContainer: {
-    padding: 12,
-    paddingBottom: 30,
+  flexOne: {
+    flex: 1,
+  },
+  scrollWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 24,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  topNavBtn: {
+  navGhostBtn: {
     borderWidth: 1,
     borderColor: '#d8e1ec',
     borderRadius: 999,
     backgroundColor: '#ffffff',
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  topNavBtnDark: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
-  },
-  topNavBtnText: {
+  navGhostText: {
     marginLeft: 4,
     color: '#111827',
     fontSize: 12,
     fontWeight: '700',
   },
-  topNavBtnDarkText: {
-    color: '#ffffff',
-    marginLeft: 0,
-  },
-  leftPanel: {
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 22,
-    marginBottom: 12,
-  },
-  leftLogo: {
-    width: 110,
-    height: 52,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    marginBottom: 14,
-  },
-  leftTitle: {
-    color: '#ffffff',
-    fontSize: 25,
-    fontWeight: '800',
-  },
-  leftSubtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 20,
+  headerCard: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     marginBottom: 10,
   },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  stepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginRight: 9,
-    fontSize: 12,
-  },
-  stepText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  formPanel: {
+  brandLogo: {
+    width: 98,
+    height: 48,
+    borderRadius: 8,
     backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 2,
-  },
-  heading: {
-    fontSize: 27,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  subHeading: {
-    color: '#6b7280',
-    marginTop: 4,
     marginBottom: 12,
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 27,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  headerSub: {
+    color: 'rgba(255,255,255,0.92)',
     fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '600',
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: '#fecaca',
-    backgroundColor: '#ffebee',
-    borderRadius: 12,
+    backgroundColor: '#fff1f2',
     paddingHorizontal: 10,
-    paddingVertical: 9,
+    paddingVertical: 8,
     marginBottom: 10,
   },
   errorText: {
@@ -506,149 +431,153 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
-  sectionTitle: {
-    marginTop: 0,
-    marginBottom: 10,
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#e53935',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  formRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  sectionCard: {
-    borderWidth: 1,
-    borderColor: '#e4eaf2',
+  card: {
     borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
-    backgroundColor: '#fbfdff',
+    borderWidth: 1,
+    borderColor: '#e4e9f2',
+    backgroundColor: '#ffffff',
+    padding: 13,
+    marginBottom: 10,
   },
-  flexOne: {
-    flex: 1,
+  cardTitle: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 10,
   },
-  formGroup: {
-    marginBottom: 11,
+  rowTwo: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  inputGroup: {
+    marginBottom: 10,
   },
   label: {
-    marginBottom: 6,
-    fontSize: 12,
-    color: '#374151',
+    color: '#334155',
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    marginBottom: 6,
   },
   input: {
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#d8e1ec',
-    borderRadius: 13,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    fontSize: 14,
     color: '#111827',
-  },
-  actionInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  inlineButton: {
-    minWidth: 84,
-    paddingHorizontal: 14,
+    fontSize: 14,
+    paddingHorizontal: 12,
     paddingVertical: 11,
-    borderRadius: 12,
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inlineBtnPrimary: {
+    minWidth: 80,
+    borderRadius: 11,
     backgroundColor: '#e53935',
+    paddingVertical: 11,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inlineButtonSecondary: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d8e1ec',
-  },
-  inlineButtonText: {
+  inlineBtnPrimaryText: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '800',
   },
-  inlineSecondaryText: {
+  inlineBtnGhost: {
+    minWidth: 80,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#d8e1ec',
+    backgroundColor: '#ffffff',
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineBtnGhostText: {
     color: '#334155',
     fontSize: 12,
     fontWeight: '800',
   },
-  statusText: {
+  inlineStatus: {
     marginTop: 6,
     color: '#475569',
     fontSize: 12,
     fontWeight: '600',
   },
-  statusOk: {
+  okStatus: {
     color: '#166534',
   },
-  statusError: {
+  errorStatus: {
     color: '#b91c1c',
   },
-  devText: {
-    marginTop: 4,
-    color: '#92400e',
-    fontSize: 12,
-    fontWeight: '700',
+  passwordWrap: {
+    position: 'relative',
   },
-  rulesWrap: {
-    marginTop: 3,
-    marginBottom: 12,
+  passwordInput: {
+    paddingRight: 42,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    padding: 3,
+  },
+  ruleWrap: {
+    marginTop: 2,
   },
   ruleText: {
-    color: '#6b7280',
+    color: '#64748b',
     fontSize: 12,
     marginBottom: 4,
   },
-  ruleValid: {
+  ruleOk: {
     color: '#166534',
     fontWeight: '700',
   },
-  photoPicker: {
+  uploadBtn: {
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#d8e1ec',
     borderStyle: 'dashed',
-    borderRadius: 14,
+    backgroundColor: '#fffafb',
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
     flexDirection: 'row',
-    gap: 8,
-    backgroundColor: '#fffafb',
   },
-  photoPickerText: {
+  uploadBtnText: {
+    marginLeft: 7,
     color: '#e53935',
-    fontWeight: '700',
     fontSize: 13,
+    fontWeight: '800',
   },
-  previewWrap: {
-    alignItems: 'center',
+  previewBox: {
     marginTop: 10,
-    marginBottom: 4,
+    alignItems: 'center',
   },
   previewImage: {
     width: 160,
     height: 120,
-    borderRadius: 12,
+    borderRadius: 11,
   },
-  previewText: {
+  previewName: {
     marginTop: 6,
-    color: '#4b5563',
+    color: '#64748b',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   submitBtn: {
-    marginTop: 14,
-    minHeight: 52,
-    borderRadius: 13,
+    marginTop: 4,
+    borderRadius: 12,
     backgroundColor: '#e53935',
+    minHeight: 51,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -659,18 +588,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  footerRow: {
-    marginTop: 14,
+  bottomRow: {
+    marginTop: 13,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  footerHint: {
-    color: '#6b7280',
+  bottomHint: {
+    color: '#64748b',
     fontSize: 13,
-    marginRight: 6,
+    fontWeight: '600',
+    marginRight: 5,
   },
-  footerLink: {
+  bottomLink: {
     color: '#e53935',
     fontSize: 13,
     fontWeight: '800',

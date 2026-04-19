@@ -1,24 +1,35 @@
 const express = require('express');
 const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
 const {
   sendRegisterCode,
   verifyRegisterCode,
   register,
   login,
+  sendOwnerAdminCode,
+  verifyOwnerAdminCode,
+  createOwnerAdmin,
+  listOwnerAdmins,
+  updateOwnerAdmin,
+  deleteOwnerAdmin,
   sendForgotCode,
   verifyForgotCode,
   resetForgotPassword,
   getMe,
+  getOwnerDashboard,
+  getAdminDashboard,
   uploadStudentPhoto,
 } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireOwner, requireAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, path.join(__dirname, '..', 'uploads'));
+    const uploadsPath = path.join(__dirname, '..', 'uploads');
+    fs.mkdirSync(uploadsPath, { recursive: true });
+    cb(null, uploadsPath);
   },
   filename(req, file, cb) {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -37,6 +48,14 @@ router.post('/register', upload.single('studentIdPhoto'), uploadStudentPhoto, re
 
 router.post('/login', login);
 router.get('/me', protect, getMe);
+router.get('/owner/dashboard', protect, requireOwner, getOwnerDashboard);
+router.post('/owner/admin/send-code', protect, requireOwner, sendOwnerAdminCode);
+router.post('/owner/admin/verify-code', protect, requireOwner, verifyOwnerAdminCode);
+router.post('/owner/admin/create', protect, requireOwner, createOwnerAdmin);
+router.get('/owner/admin/list', protect, requireOwner, listOwnerAdmins);
+router.patch('/owner/admin/:adminId', protect, requireOwner, updateOwnerAdmin);
+router.delete('/owner/admin/:adminId', protect, requireOwner, deleteOwnerAdmin);
+router.get('/admin/dashboard', protect, requireAdmin, getAdminDashboard);
 
 router.post('/forgot-password/send-code', sendForgotCode);
 router.post('/forgot-password/verify-code', verifyForgotCode);
