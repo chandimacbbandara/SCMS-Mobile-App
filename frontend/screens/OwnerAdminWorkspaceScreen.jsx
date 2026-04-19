@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -72,6 +73,16 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
   const [verifyMessageType, setVerifyMessageType] = useState('info');
   const [createMessage, setCreateMessage] = useState('');
   const [createMessageType, setCreateMessageType] = useState('info');
+
+  const [editingAdminId, setEditingAdminId] = useState(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [editConfirmPassword, setEditConfirmPassword] = useState('');
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [manageMessage, setManageMessage] = useState('');
+  const [manageMessageType, setManageMessageType] = useState('info');
 
   const loadAdmins = useCallback(async (isRefresh) => {
     if (!token) {
@@ -263,6 +274,142 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
     } finally {
       setCreateLoading(false);
     }
+  }
+
+  function startEditAdmin(admin) {
+    setEditingAdminId(admin.id || null);
+    setEditEmail(String(admin.email || ''));
+    setEditUsername(String(admin.username || ''));
+    setEditNewPassword('');
+    setEditConfirmPassword('');
+    setManageMessage('');
+  }
+
+  function cancelEditAdmin() {
+    setEditingAdminId(null);
+    setEditEmail('');
+    setEditUsername('');
+    setEditNewPassword('');
+    setEditConfirmPassword('');
+  }
+
+  async function handleUpdateAdmin() {
+    const adminId = String(editingAdminId || '').trim();
+    const emailValue = editEmail.trim().toLowerCase();
+    const usernameValue = editUsername.trim();
+
+    setManageMessage('');
+
+    if (!adminId) {
+      setManageMessageType('error');
+      setManageMessage('Please select an admin account to update.');
+      return;
+    }
+
+    if (!isValidEmail(emailValue)) {
+      setManageMessageType('error');
+      setManageMessage('Please enter a valid admin email.');
+      return;
+    }
+
+    if (!isValidUsername(usernameValue)) {
+      setManageMessageType('error');
+      setManageMessage('Username must be 3-30 chars and contain letters, numbers, dot, underscore, or hyphen.');
+      return;
+    }
+
+    if (editNewPassword || editConfirmPassword) {
+      if (!isStrongAdminPassword(editNewPassword)) {
+        setManageMessageType('error');
+        setManageMessage('New password must be 12+ chars with uppercase, lowercase, number, and special character.');
+        return;
+      }
+
+      if (editNewPassword !== editConfirmPassword) {
+        setManageMessageType('error');
+        setManageMessage('New password and confirm password do not match.');
+        return;
+      }
+    }
+
+    setUpdateLoading(true);
+
+    try {
+      const response = await apiRequest(`/auth/owner/admin/${adminId}`, {
+        method: 'PATCH',
+        token,
+        body: {
+          email: emailValue,
+          username: usernameValue,
+          newPassword: editNewPassword,
+          confirmPassword: editConfirmPassword,
+        },
+      });
+
+      setManageMessageType('ok');
+      setManageMessage(response.message || 'Admin account updated successfully.');
+
+      await loadAdmins(false);
+      cancelEditAdmin();
+    } catch (error) {
+      setManageMessageType('error');
+      setManageMessage(error.message || 'Failed to update admin account');
+    } finally {
+      setUpdateLoading(false);
+    }
+  }
+
+  async function performDeleteAdmin(adminId) {
+    setDeleteLoadingId(adminId);
+    setManageMessage('');
+
+    try {
+      const response = await apiRequest(`/auth/owner/admin/${adminId}`, {
+        method: 'DELETE',
+        token,
+      });
+
+      setManageMessageType('ok');
+      setManageMessage(response.message || 'Admin account deleted successfully.');
+
+      if (editingAdminId === adminId) {
+        cancelEditAdmin();
+      }
+
+      await loadAdmins(false);
+    } catch (error) {
+      setManageMessageType('error');
+      setManageMessage(error.message || 'Failed to delete admin account');
+    } finally {
+      setDeleteLoadingId(null);
+    }
+  }
+
+  function handleDeleteAdmin(admin) {
+    const adminId = String(admin.id || '').trim();
+    if (!adminId) {
+      setManageMessageType('error');
+      setManageMessage('Invalid admin account.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Admin Account',
+      `Delete ${admin.username || 'this admin'} account? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            performDeleteAdmin(adminId);
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -467,6 +614,10 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
             </View>
 
             <View style={styles.cardBody}>
+              {!!manageMessage && (
+                <Text style={[styles.feedbackText, manageMessageType === 'ok' ? styles.feedbackOk : styles.feedbackError]}>{manageMessage}</Text>
+              )}
+
               {loadingAdmins ? (
                 <View style={styles.loaderWrap}>
                   <ActivityIndicator size="small" color="#b4233a" />
@@ -480,30 +631,133 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
                 </View>
               ) : (
                 <View style={styles.adminList}>
-                  {admins.map((admin, index) => (
-                    <View key={admin.id || `${admin.email}-${index}`} style={styles.adminItem}>
-                      <View style={styles.adminTopRow}>
-                        <View style={styles.adminAvatar}>
-                          <Text style={styles.adminAvatarText}>{String(admin.username || 'A').slice(0, 1).toUpperCase()}</Text>
-                        </View>
-                        <View style={styles.adminMeta}>
-                          <Text style={styles.adminName}>{admin.username || 'Admin'}</Text>
-                          <Text style={styles.adminEmail}>{admin.email || 'Not available'}</Text>
-                        </View>
-                      </View>
+                  {admins.map((admin, index) => {
+                    const isEditing = editingAdminId === admin.id;
 
-                      <View style={styles.metaPillRow}>
-                        <View style={styles.metaPill}>
-                          <Ionicons name="shield-checkmark-outline" size={11} color="#51647a" />
-                          <Text style={styles.metaPillText}>{admin.role || 'admin'}</Text>
+                    return (
+                      <View key={admin.id || `${admin.email}-${index}`} style={styles.adminItem}>
+                        <View style={styles.adminTopRow}>
+                          <View style={styles.adminAvatar}>
+                            <Text style={styles.adminAvatarText}>{String(admin.username || 'A').slice(0, 1).toUpperCase()}</Text>
+                          </View>
+                          <View style={styles.adminMeta}>
+                            <Text style={styles.adminName}>{admin.username || 'Admin'}</Text>
+                            <Text style={styles.adminEmail}>{admin.email || 'Not available'}</Text>
+                          </View>
                         </View>
-                        <View style={styles.metaPill}>
-                          <Ionicons name="time-outline" size={11} color="#51647a" />
-                          <Text style={styles.metaPillText}>{formatDateTime(admin.createdAt)}</Text>
+
+                        <View style={styles.metaPillRow}>
+                          <View style={styles.metaPill}>
+                            <Ionicons name="shield-checkmark-outline" size={11} color="#51647a" />
+                            <Text style={styles.metaPillText}>{admin.role || 'admin'}</Text>
+                          </View>
+                          <View style={styles.metaPill}>
+                            <Ionicons name="time-outline" size={11} color="#51647a" />
+                            <Text style={styles.metaPillText}>{formatDateTime(admin.createdAt)}</Text>
+                          </View>
                         </View>
+
+                        <View style={styles.manageActionsRow}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.updateBtn]}
+                            onPress={() => {
+                              if (isEditing) {
+                                cancelEditAdmin();
+                              } else {
+                                startEditAdmin(admin);
+                              }
+                            }}
+                            activeOpacity={0.9}
+                          >
+                            <Ionicons name={isEditing ? 'close-outline' : 'create-outline'} size={14} color="#ffffff" />
+                            <Text style={styles.actionBtnText}>{isEditing ? 'Close' : 'Update'}</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.deleteBtn, deleteLoadingId === admin.id ? styles.btnDisabled : null]}
+                            onPress={() => handleDeleteAdmin(admin)}
+                            disabled={deleteLoadingId === admin.id}
+                            activeOpacity={0.9}
+                          >
+                            {deleteLoadingId === admin.id ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Ionicons name="trash-outline" size={14} color="#ffffff" />
+                                <Text style={styles.actionBtnText}>Delete</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+
+                        {isEditing && (
+                          <View style={styles.editPanel}>
+                            <Text style={styles.editPanelTitle}>Update Admin Details</Text>
+
+                            <Text style={styles.inputLabel}>Email</Text>
+                            <TextInput
+                              value={editEmail}
+                              onChangeText={setEditEmail}
+                              placeholder="admin@example.com"
+                              keyboardType="email-address"
+                              autoCapitalize="none"
+                              style={styles.input}
+                            />
+
+                            <Text style={[styles.inputLabel, styles.marginTop]}>Username</Text>
+                            <TextInput
+                              value={editUsername}
+                              onChangeText={setEditUsername}
+                              placeholder="admin_username"
+                              autoCapitalize="none"
+                              style={styles.input}
+                            />
+
+                            <Text style={[styles.inputLabel, styles.marginTop]}>New Password (Optional)</Text>
+                            <TextInput
+                              value={editNewPassword}
+                              onChangeText={setEditNewPassword}
+                              placeholder="Leave blank to keep current"
+                              secureTextEntry
+                              style={styles.input}
+                            />
+
+                            <Text style={[styles.inputLabel, styles.marginTop]}>Confirm New Password</Text>
+                            <TextInput
+                              value={editConfirmPassword}
+                              onChangeText={setEditConfirmPassword}
+                              placeholder="Re-enter new password"
+                              secureTextEntry
+                              style={styles.input}
+                            />
+
+                            <View style={styles.editActionRow}>
+                              <TouchableOpacity
+                                style={[styles.primaryBtn, styles.editSaveBtn]}
+                                onPress={handleUpdateAdmin}
+                                disabled={updateLoading}
+                                activeOpacity={0.9}
+                              >
+                                {updateLoading ? (
+                                  <ActivityIndicator size="small" color="#ffffff" />
+                                ) : (
+                                  <>
+                                    <Ionicons name="save-outline" size={16} color="#ffffff" />
+                                    <Text style={styles.primaryBtnText}>Save Changes</Text>
+                                  </>
+                                )}
+                              </TouchableOpacity>
+
+                              <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditAdmin} activeOpacity={0.9}>
+                                <Ionicons name="close-outline" size={16} color="#475569" />
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -912,5 +1166,73 @@ const styles = StyleSheet.create({
     color: '#51647a',
     fontSize: 11,
     fontWeight: '700',
+  },
+  manageActionsRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    minHeight: 39,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+  },
+  updateBtn: {
+    backgroundColor: '#1d4ed8',
+  },
+  deleteBtn: {
+    backgroundColor: '#be123c',
+  },
+  actionBtnText: {
+    marginLeft: 5,
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  editPanel: {
+    marginTop: 10,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#dbe5ef',
+    backgroundColor: '#f8fbff',
+    padding: 10,
+  },
+  editPanelTitle: {
+    color: '#112034',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  editActionRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  editSaveBtn: {
+    marginTop: 0,
+    flex: 1,
+    minHeight: 44,
+  },
+  cancelBtn: {
+    minHeight: 44,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#d8e1ec',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    marginLeft: 4,
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

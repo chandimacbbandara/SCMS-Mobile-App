@@ -566,6 +566,118 @@ async function listOwnerAdmins(req, res) {
   }
 }
 
+async function updateOwnerAdmin(req, res) {
+  try {
+    const adminId = String(req.params.adminId || '').trim();
+    const email = normalizeEmail(req.body.email);
+    const username = String(req.body.username || '').trim();
+    const newPassword = String(req.body.newPassword || '');
+    const confirmPassword = String(req.body.confirmPassword || '');
+
+    if (!adminId) {
+      return res.status(400).json({ status: 'error', message: 'Admin ID is required' });
+    }
+
+    if (!email || !username) {
+      return res.status(400).json({ status: 'error', message: 'Email and username are required' });
+    }
+
+    if (!isValidEmailAddress(email)) {
+      return res.status(400).json({ status: 'error', message: 'Please enter a valid email address' });
+    }
+
+    if (email === normalizeEmail(OWNER_EMAIL)) {
+      return res.status(400).json({ status: 'error', message: 'Owner email cannot be used for admin account' });
+    }
+
+    if (!isValidUsername(username)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Username must be 3-30 chars and contain only letters, numbers, dot, underscore, or hyphen',
+      });
+    }
+
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ status: 'error', message: 'Admin account not found' });
+    }
+
+    const emailChanged = normalizeEmail(admin.email) !== email;
+    const usernameChanged = String(admin.username || '').trim() !== username;
+
+    if (emailChanged) {
+      const [existingAdminByEmail, existingStudentByEmail] = await Promise.all([
+        Admin.findOne({ email, _id: { $ne: adminId } }),
+        Student.findOne({ email }),
+      ]);
+
+      if (existingAdminByEmail || existingStudentByEmail) {
+        return res.status(400).json({ status: 'error', message: 'Email is already in use' });
+      }
+    }
+
+    if (usernameChanged) {
+      const existingAdminByUsername = await Admin.findOne({ username, _id: { $ne: adminId } });
+      if (existingAdminByUsername) {
+        return res.status(400).json({ status: 'error', message: 'Username is already in use' });
+      }
+    }
+
+    const hasPasswordUpdate = Boolean(newPassword || confirmPassword);
+    if (hasPasswordUpdate) {
+      if (!isStrongAdminPassword(newPassword)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Password must be at least 12 chars and include uppercase, lowercase, number, and special character',
+        });
+      }
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ status: 'error', message: 'Password and confirm password do not match' });
+      }
+
+      admin.password = await bcrypt.hash(newPassword, 10);
+    }
+
+    admin.email = email;
+    admin.username = username;
+    await admin.save();
+
+    return res.json({
+      status: 'ok',
+      message: 'Admin account updated successfully',
+      admin: sanitizeAdmin(admin),
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Failed to update admin account' });
+  }
+}
+
+async function deleteOwnerAdmin(req, res) {
+  try {
+    const adminId = String(req.params.adminId || '').trim();
+
+    if (!adminId) {
+      return res.status(400).json({ status: 'error', message: 'Admin ID is required' });
+    }
+
+    const admin = await Admin.findByIdAndDelete(adminId).select('-password');
+    if (!admin) {
+      return res.status(404).json({ status: 'error', message: 'Admin account not found' });
+    }
+
+    adminCreateCodeStore.delete(normalizeEmail(admin.email));
+
+    return res.json({
+      status: 'ok',
+      message: 'Admin account deleted successfully',
+      admin: sanitizeAdmin(admin),
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Failed to delete admin account' });
+  }
+}
+
 async function getAdminDashboard(req, res) {
   try {
     const startOfMonth = new Date();
@@ -852,6 +964,8 @@ module.exports = {
   verifyOwnerAdminCode,
   createOwnerAdmin,
   listOwnerAdmins,
+  updateOwnerAdmin,
+  deleteOwnerAdmin,
   sendForgotCode,
   verifyForgotCode,
   resetForgotPassword,

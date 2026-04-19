@@ -11,6 +11,8 @@ const {
   verifyOwnerAdminCode,
   createOwnerAdmin,
   listOwnerAdmins,
+  updateOwnerAdmin,
+  deleteOwnerAdmin,
   sendForgotCode,
   verifyForgotCode,
   resetForgotPassword,
@@ -51,6 +53,8 @@ router.post('/owner/admin/send-code', protect, requireOwner, sendOwnerAdminCode)
 router.post('/owner/admin/verify-code', protect, requireOwner, verifyOwnerAdminCode);
 router.post('/owner/admin/create', protect, requireOwner, createOwnerAdmin);
 router.get('/owner/admin/list', protect, requireOwner, listOwnerAdmins);
+router.patch('/owner/admin/:adminId', protect, requireOwner, updateOwnerAdmin);
+router.delete('/owner/admin/:adminId', protect, requireOwner, deleteOwnerAdmin);
 router.get('/admin/dashboard', protect, requireAdmin, getAdminDashboard);
 
 router.post('/forgot-password/send-code', sendForgotCode);
