@@ -51,7 +51,6 @@ export default function RegisterScreen({ navigation }) {
   const [sendCodeMessage, setSendCodeMessage] = useState('');
   const [confirmCodeMessage, setConfirmCodeMessage] = useState('');
   const [generalError, setGeneralError] = useState('');
-  const [devCode, setDevCode] = useState('');
 
   const [sendCodeLoading, setSendCodeLoading] = useState(false);
   const [confirmCodeLoading, setConfirmCodeLoading] = useState(false);
@@ -101,10 +100,8 @@ export default function RegisterScreen({ navigation }) {
     try {
       const response = await sendRegisterCode(email.trim(), firstName.trim());
       setSendCodeMessage(response.message || 'Verification code sent');
-      setDevCode(response.devCode || '');
     } catch (error) {
       setSendCodeMessage(error.message || 'Could not send verification code');
-      setDevCode('');
     } finally {
       setSendCodeLoading(false);
     }
@@ -249,7 +246,6 @@ export default function RegisterScreen({ navigation }) {
                   onChangeText={(value) => {
                     setEmail(value);
                     setEmailVerified(false);
-                    setDevCode('');
                   }}
                   placeholder="you@example.com"
                   keyboardType="email-address"
@@ -264,7 +260,6 @@ export default function RegisterScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
               {!!sendCodeMessage && <Text style={styles.statusText}>{sendCodeMessage}</Text>}
-              {!!devCode && <Text style={styles.devText}>Dev code: {devCode}</Text>}
             </View>
 
             <View style={styles.formGroup}>
@@ -591,12 +586,6 @@ const styles = StyleSheet.create({
   },
   statusError: {
     color: '#b91c1c',
-  },
-  devText: {
-    marginTop: 4,
-    color: '#92400e',
-    fontSize: 12,
-    fontWeight: '700',
   },
   rulesWrap: {
     marginTop: 3,

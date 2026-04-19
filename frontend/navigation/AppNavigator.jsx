@@ -6,6 +6,7 @@ import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import StudentDashboardScreen from '../screens/StudentDashboardScreen';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -29,7 +30,8 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        key={isAuthenticated ? 'auth-stack' : 'guest-stack'}
+        initialRouteName={isAuthenticated ? 'StudentDashboard' : 'Home'}
         screenOptions={{
           headerTintColor: '#111827',
           headerTitleStyle: {
@@ -40,16 +42,15 @@ export default function AppNavigator() {
           },
         }}
       >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-
-        {!isAuthenticated && (
+        {!isAuthenticated ? (
           <>
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
             <Stack.Screen
               name="Login"
               component={LoginScreen}
@@ -75,6 +76,15 @@ export default function AppNavigator() {
               }}
             />
           </>
+        ) : (
+          <Stack.Screen
+            name="StudentDashboard"
+            component={StudentDashboardScreen}
+            options={{
+              title: 'Student Dashboard',
+              headerShown: false,
+            }}
+          />
         )}
       </Stack.Navigator>
     </NavigationContainer>

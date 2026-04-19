@@ -43,7 +43,6 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [verifyStatus, setVerifyStatus] = useState('');
   const [resetStatus, setResetStatus] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [devCode, setDevCode] = useState('');
 
   const [sendLoading, setSendLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
@@ -67,11 +66,9 @@ export default function ForgotPasswordScreen({ navigation }) {
     try {
       const response = await sendForgotCode(email.trim());
       setSendStatus(response.message || 'Code sent successfully');
-      setDevCode(response.devCode || '');
       setStep(2);
     } catch (error) {
       setErrorMessage(error.message || 'Unable to send code');
-      setDevCode('');
     } finally {
       setSendLoading(false);
     }
@@ -193,7 +190,6 @@ export default function ForgotPasswordScreen({ navigation }) {
               setCode('');
               setNewPassword('');
               setConfirmPassword('');
-              setDevCode('');
             }}
             placeholder="you@example.com"
             keyboardType="email-address"
@@ -203,7 +199,6 @@ export default function ForgotPasswordScreen({ navigation }) {
             {sendLoading ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.primaryBtnText}>Send Code</Text>}
           </TouchableOpacity>
           {!!sendStatus && <Text style={styles.okText}>{sendStatus}</Text>}
-          {!!devCode && <Text style={styles.devText}>Dev code: {devCode}</Text>}
         </View>
 
         <View style={[styles.stepCard, step === 2 && styles.stepActive, step > 2 && styles.stepDone, step < 2 && styles.stepLocked]}>
@@ -480,12 +475,6 @@ const styles = StyleSheet.create({
   okText: {
     marginTop: 7,
     color: '#166534',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  devText: {
-    marginTop: 4,
-    color: '#92400e',
     fontSize: 12,
     fontWeight: '700',
   },

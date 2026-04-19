@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
 const {
   sendRegisterCode,
@@ -18,7 +19,9 @@ const router = express.Router();
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, path.join(__dirname, '..', 'uploads'));
+    const uploadsPath = path.join(__dirname, '..', 'uploads');
+    fs.mkdirSync(uploadsPath, { recursive: true });
+    cb(null, uploadsPath);
   },
   filename(req, file, cb) {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
