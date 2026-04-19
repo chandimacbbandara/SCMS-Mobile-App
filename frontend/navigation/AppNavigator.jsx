@@ -8,6 +8,8 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import StudentDashboardScreen from '../screens/StudentDashboardScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
+import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
+import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -24,6 +26,10 @@ function SplashLoader() {
 export default function AppNavigator() {
   const { initializing, isAuthenticated, user } = useAuth();
   const isOwner = user?.role === 'owner';
+  const isAdmin = user?.role === 'admin';
+
+  const authStackKey = isOwner ? 'owner-stack' : isAdmin ? 'admin-stack' : 'student-stack';
+  const authInitialRoute = isOwner ? 'OwnerDashboard' : isAdmin ? 'AdminDashboard' : 'StudentDashboard';
 
   if (initializing) {
     return <SplashLoader />;
@@ -32,8 +38,8 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        key={isAuthenticated ? (isOwner ? 'owner-stack' : 'student-stack') : 'guest-stack'}
-        initialRouteName={isAuthenticated ? (isOwner ? 'OwnerDashboard' : 'StudentDashboard') : 'Home'}
+        key={isAuthenticated ? authStackKey : 'guest-stack'}
+        initialRouteName={isAuthenticated ? authInitialRoute : 'Home'}
         screenOptions={{
           headerTintColor: '#111827',
           headerTitleStyle: {
@@ -80,11 +86,30 @@ export default function AppNavigator() {
           </>
         ) : (
           isOwner ? (
+            <>
+              <Stack.Screen
+                name="OwnerDashboard"
+                component={OwnerDashboardScreen}
+                options={{
+                  title: 'Owner Dashboard',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="OwnerAdminWorkspace"
+                component={OwnerAdminWorkspaceScreen}
+                options={{
+                  title: 'Admin Workspace',
+                  headerShown: false,
+                }}
+              />
+            </>
+          ) : isAdmin ? (
             <Stack.Screen
-              name="OwnerDashboard"
-              component={OwnerDashboardScreen}
+              name="AdminDashboard"
+              component={AdminDashboardScreen}
               options={{
-                title: 'Owner Dashboard',
+                title: 'Admin Dashboard',
                 headerShown: false,
               }}
             />

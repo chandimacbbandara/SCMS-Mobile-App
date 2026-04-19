@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Student = require('../models/Student');
+const Admin = require('../models/Admin');
 
 const OWNER_EMAIL = 'admin@akbinstitute.edu.lk';
 
@@ -12,6 +13,16 @@ function getOwnerUser() {
     studentId: 'OWNER',
     role: 'owner',
     studentIdPhoto: null,
+  };
+}
+
+function sanitizeAdminUser(admin) {
+  return {
+    id: admin._id,
+    email: admin.email,
+    username: admin.username,
+    role: admin.role || 'admin',
+    createdAt: admin.createdAt,
   };
 }
 
@@ -36,6 +47,16 @@ async function protect(req, res, next) {
       return next();
     }
 
+    if (decoded && (decoded.role === 'admin' || decoded.type === 'admin')) {
+      const admin = await Admin.findById(decoded.id).select('-password');
+      if (!admin) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized: admin not found' });
+      }
+
+      req.user = sanitizeAdminUser(admin);
+      return next();
+    }
+
     const student = await Student.findById(decoded.id).select('-password');
 
     if (!student) {
@@ -57,7 +78,16 @@ function requireOwner(req, res, next) {
   return next();
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: admin access required' });
+  }
+
+  return next();
+}
+
 module.exports = {
   protect,
   requireOwner,
+  requireAdmin,
 };

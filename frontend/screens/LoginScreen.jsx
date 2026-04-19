@@ -69,7 +69,7 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>Sign In</Text>
-            <Text style={styles.formSub}>Use your student account credentials</Text>
+            <Text style={styles.formSub}>Use your student, admin, or owner account credentials</Text>
 
             {!!errorMessage && (
               <View style={styles.errorBanner}>

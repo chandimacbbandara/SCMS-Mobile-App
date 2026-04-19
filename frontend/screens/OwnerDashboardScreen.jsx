@@ -31,7 +31,7 @@ function formatDate(value) {
   });
 }
 
-export default function OwnerDashboardScreen() {
+export default function OwnerDashboardScreen({ navigation }) {
   const { token, user, logout } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
@@ -77,6 +77,7 @@ export default function OwnerDashboardScreen() {
     const studentsWithPhoto = Number(dashboard?.studentsWithPhoto || 0);
     const studentsWithoutPhoto = Number(dashboard?.studentsWithoutPhoto || 0);
     const newStudentsThisMonth = Number(dashboard?.newStudentsThisMonth || 0);
+    const totalAdmins = Number(dashboard?.totalAdmins || 0);
 
     return [
       {
@@ -105,14 +106,22 @@ export default function OwnerDashboardScreen() {
       },
       {
         id: 'm4',
-        label: 'New this month',
-        value: String(newStudentsThisMonth),
-        icon: 'calendar-outline',
+        label: 'Total admins',
+        value: String(totalAdmins),
+        icon: 'shield-checkmark-outline',
         iconColor: '#15803d',
         iconBg: '#e9f9ef',
       },
+      {
+        id: 'm5',
+        label: 'New this month',
+        value: String(newStudentsThisMonth),
+        icon: 'calendar-outline',
+        iconColor: '#7c3aed',
+        iconBg: '#efe8ff',
+      },
     ];
-  }, [dashboard?.newStudentsThisMonth, dashboard?.studentsWithPhoto, dashboard?.studentsWithoutPhoto, dashboard?.totalStudents]);
+  }, [dashboard?.newStudentsThisMonth, dashboard?.studentsWithPhoto, dashboard?.studentsWithoutPhoto, dashboard?.totalAdmins, dashboard?.totalStudents]);
 
   const latestStudent = dashboard?.latestStudent || null;
   const ownerName = `${user?.firstName || 'Owner'}${user?.lastName ? ` ${user.lastName}` : ''}`;
@@ -161,6 +170,15 @@ export default function OwnerDashboardScreen() {
               <Ionicons name="refresh-outline" size={12} color="#ffffff" />
               <Text style={styles.heroMetaText}>Pull down to refresh live data</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.workspaceBtn}
+              onPress={() => navigation.navigate('OwnerAdminWorkspace')}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="person-add-outline" size={15} color="#7f1d1d" />
+              <Text style={styles.workspaceBtnText}>Open Admin Workspace</Text>
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -351,6 +369,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 11,
     fontWeight: '700',
+  },
+  workspaceBtn: {
+    marginTop: 2,
+    alignSelf: 'flex-start',
+    borderRadius: 11,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workspaceBtnText: {
+    marginLeft: 6,
+    color: '#7f1d1d',
+    fontSize: 12,
+    fontWeight: '800',
   },
   loaderCard: {
     borderRadius: 16,

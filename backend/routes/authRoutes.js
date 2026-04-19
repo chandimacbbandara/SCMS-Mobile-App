@@ -7,14 +7,19 @@ const {
   verifyRegisterCode,
   register,
   login,
+  sendOwnerAdminCode,
+  verifyOwnerAdminCode,
+  createOwnerAdmin,
+  listOwnerAdmins,
   sendForgotCode,
   verifyForgotCode,
   resetForgotPassword,
   getMe,
   getOwnerDashboard,
+  getAdminDashboard,
   uploadStudentPhoto,
 } = require('../controllers/authController');
-const { protect, requireOwner } = require('../middleware/authMiddleware');
+const { protect, requireOwner, requireAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -42,6 +47,11 @@ router.post('/register', upload.single('studentIdPhoto'), uploadStudentPhoto, re
 router.post('/login', login);
 router.get('/me', protect, getMe);
 router.get('/owner/dashboard', protect, requireOwner, getOwnerDashboard);
+router.post('/owner/admin/send-code', protect, requireOwner, sendOwnerAdminCode);
+router.post('/owner/admin/verify-code', protect, requireOwner, verifyOwnerAdminCode);
+router.post('/owner/admin/create', protect, requireOwner, createOwnerAdmin);
+router.get('/owner/admin/list', protect, requireOwner, listOwnerAdmins);
+router.get('/admin/dashboard', protect, requireAdmin, getAdminDashboard);
 
 router.post('/forgot-password/send-code', sendForgotCode);
 router.post('/forgot-password/verify-code', verifyForgotCode);
