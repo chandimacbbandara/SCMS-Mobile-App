@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const Student = require('../models/Student');
 const Admin = require('../models/Admin');
+const Consulter = require('../models/Consulter');
+const Feedback = require('../models/Feedback');
 const { isMailConfigured, sendMail } = require('../utils/mailer');
 
 const OWNER_EMAIL = 'admin@akbinstitute.edu.lk';
@@ -32,6 +34,10 @@ function createOwnerToken(email) {
 
 function createAdminToken(adminId) {
   return createToken({ id: String(adminId), role: 'admin', type: 'admin' });
+}
+
+function createConsulterToken(consulterId) {
+  return createToken({ id: String(consulterId), role: 'consulter', type: 'consulter' });
 }
 
 function getOwnerUser() {
@@ -66,6 +72,19 @@ function sanitizeAdmin(admin) {
     role: admin.role || 'admin',
     createdAt: admin.createdAt,
   };
+}
+
+function normalizeAccountRole(role) {
+  const value = String(role || '').trim().toLowerCase();
+  if (value === 'admin' || value === 'consulter') {
+    return value;
+  }
+
+  return null;
+}
+
+function roleDisplayLabel(role) {
+  return role === 'consulter' ? 'Consulter' : 'Admin';
 }
 
 function normalizeEmail(email) {
@@ -338,6 +357,23 @@ async function login(req, res) {
       });
     }
 
+    const consulter = await Consulter.findOne({ email });
+    if (consulter) {
+      const consulterPasswordMatches = await bcrypt.compare(password, consulter.password);
+      if (!consulterPasswordMatches) {
+        return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
+      }
+
+      const consulterToken = createConsulterToken(consulter._id);
+
+      return res.json({
+        status: 'ok',
+        message: 'Consulter login successful',
+        token: consulterToken,
+        user: sanitizeAdmin(consulter),
+      });
+    }
+
     const student = await Student.findOne({ email });
     if (!student) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials' });
@@ -374,15 +410,16 @@ async function sendOwnerAdminCode(req, res) {
     }
 
     if (email === normalizeEmail(OWNER_EMAIL)) {
-      return res.status(400).json({ status: 'error', message: 'Owner email cannot be used for admin account' });
+      return res.status(400).json({ status: 'error', message: 'Owner email cannot be used for staff account' });
     }
 
-    const [existingAdmin, existingStudent] = await Promise.all([
+    const [existingAdmin, existingConsulter, existingStudent] = await Promise.all([
       Admin.findOne({ email }),
+      Consulter.findOne({ email }),
       Student.findOne({ email }),
     ]);
 
-    if (existingAdmin || existingStudent) {
+    if (existingAdmin || existingConsulter || existingStudent) {
       return res.status(400).json({ status: 'error', message: 'Email is already in use' });
     }
 
@@ -403,16 +440,16 @@ async function sendOwnerAdminCode(req, res) {
     });
 
     const emailBody = buildVerificationEmail({
-      name: 'Admin',
+      name: 'Staff',
       code,
-      title: 'Admin Verification Code',
-      purposeLine: 'Use this code to verify the admin email before account creation.',
+      title: 'Account Verification Code',
+      purposeLine: 'Use this code to verify the account email before account creation.',
     });
 
     try {
       await sendMail({
         to: email,
-        subject: 'SCMS Admin Account Verification Code',
+        subject: 'SCMS Staff Account Verification Code',
         text: emailBody.text,
         html: emailBody.html,
       });
@@ -431,10 +468,10 @@ async function sendOwnerAdminCode(req, res) {
 
     return res.json({
       status: 'ok',
-      message: 'Verification code sent to admin email. Check Inbox, Spam, and Updates folders.',
+      message: 'Verification code sent to account email. Check Inbox, Spam, and Updates folders.',
     });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Failed to send admin verification code' });
+    return res.status(500).json({ status: 'error', message: 'Failed to send account verification code' });
   }
 }
 
@@ -466,9 +503,9 @@ async function verifyOwnerAdminCode(req, res) {
       verified: true,
     });
 
-    return res.json({ status: 'ok', message: 'Admin email verified successfully' });
+    return res.json({ status: 'ok', message: 'Account email verified successfully' });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Failed to verify admin code' });
+    return res.status(500).json({ status: 'error', message: 'Failed to verify account code' });
   }
 }
 
@@ -478,9 +515,17 @@ async function createOwnerAdmin(req, res) {
     const username = String(req.body.username || '').trim();
     const password = String(req.body.password || '');
     const confirmPassword = String(req.body.confirmPassword || '');
+    const role = normalizeAccountRole(req.body.role || 'admin');
 
     if (!email || !username || !password || !confirmPassword) {
       return res.status(400).json({ status: 'error', message: 'Email, username, password and confirm password are required' });
+    }
+
+    if (!role) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Role must be either admin or consulter',
+      });
     }
 
     if (!isValidEmailAddress(email)) {
@@ -509,60 +554,74 @@ async function createOwnerAdmin(req, res) {
     if (!verificationEntry || !verificationEntry.verified || Date.now() > verificationEntry.expiresAt) {
       return res.status(400).json({
         status: 'error',
-        message: 'Please verify admin email code before creating account',
+        message: 'Please verify account email code before creating account',
       });
     }
 
     const [
       existingAdminByEmail,
+      existingConsulterByEmail,
       existingAdminByUsername,
+      existingConsulterByUsername,
       existingStudentByEmail,
     ] = await Promise.all([
       Admin.findOne({ email }),
+      Consulter.findOne({ email }),
       Admin.findOne({ username }),
+      Consulter.findOne({ username }),
       Student.findOne({ email }),
     ]);
 
-    if (existingAdminByEmail || existingStudentByEmail) {
+    if (existingAdminByEmail || existingConsulterByEmail || existingStudentByEmail) {
       return res.status(400).json({ status: 'error', message: 'Email is already in use' });
     }
 
-    if (existingAdminByUsername) {
+    if (existingAdminByUsername || existingConsulterByUsername) {
       return res.status(400).json({ status: 'error', message: 'Username is already in use' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const AccountModel = role === 'consulter' ? Consulter : Admin;
 
-    const admin = await Admin.create({
+    const createdAccount = await AccountModel.create({
       email,
       username,
       password: hashedPassword,
-      role: 'admin',
+      role,
       createdBy: 'owner',
     });
+
+    const roleLabel = roleDisplayLabel(role);
 
     adminCreateCodeStore.delete(email);
 
     return res.status(201).json({
       status: 'ok',
-      message: 'Admin account created successfully',
-      admin: sanitizeAdmin(admin),
+      message: `${roleLabel} account created successfully`,
+      admin: sanitizeAdmin(createdAccount),
     });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Failed to create admin account' });
+    return res.status(500).json({ status: 'error', message: 'Failed to create account' });
   }
 }
 
 async function listOwnerAdmins(req, res) {
   try {
-    const admins = await Admin.find({}).sort({ createdAt: -1 }).select('-password');
+    const [admins, consulters] = await Promise.all([
+      Admin.find({}).select('-password'),
+      Consulter.find({}).select('-password'),
+    ]);
+
+    const accounts = [...admins, ...consulters].sort((left, right) => {
+      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    });
 
     return res.json({
       status: 'ok',
-      admins: admins.map((admin) => sanitizeAdmin(admin)),
+      admins: accounts.map((admin) => sanitizeAdmin(admin)),
     });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Failed to load admin accounts' });
+    return res.status(500).json({ status: 'error', message: 'Failed to load staff accounts' });
   }
 }
 
@@ -587,7 +646,7 @@ async function updateOwnerAdmin(req, res) {
     }
 
     if (email === normalizeEmail(OWNER_EMAIL)) {
-      return res.status(400).json({ status: 'error', message: 'Owner email cannot be used for admin account' });
+      return res.status(400).json({ status: 'error', message: 'Owner email cannot be used for staff account' });
     }
 
     if (!isValidUsername(username)) {
@@ -597,28 +656,41 @@ async function updateOwnerAdmin(req, res) {
       });
     }
 
-    const admin = await Admin.findById(adminId);
+    const [foundAdmin, foundConsulter] = await Promise.all([
+      Admin.findById(adminId),
+      Consulter.findById(adminId),
+    ]);
+
+    const admin = foundAdmin || foundConsulter;
     if (!admin) {
-      return res.status(404).json({ status: 'error', message: 'Admin account not found' });
+      return res.status(404).json({ status: 'error', message: 'Account not found' });
     }
+
+    const AccountModel = foundAdmin ? Admin : Consulter;
+    const OtherModel = foundAdmin ? Consulter : Admin;
 
     const emailChanged = normalizeEmail(admin.email) !== email;
     const usernameChanged = String(admin.username || '').trim() !== username;
 
     if (emailChanged) {
-      const [existingAdminByEmail, existingStudentByEmail] = await Promise.all([
-        Admin.findOne({ email, _id: { $ne: adminId } }),
+      const [existingSameTypeByEmail, existingOtherTypeByEmail, existingStudentByEmail] = await Promise.all([
+        AccountModel.findOne({ email, _id: { $ne: adminId } }),
+        OtherModel.findOne({ email }),
         Student.findOne({ email }),
       ]);
 
-      if (existingAdminByEmail || existingStudentByEmail) {
+      if (existingSameTypeByEmail || existingOtherTypeByEmail || existingStudentByEmail) {
         return res.status(400).json({ status: 'error', message: 'Email is already in use' });
       }
     }
 
     if (usernameChanged) {
-      const existingAdminByUsername = await Admin.findOne({ username, _id: { $ne: adminId } });
-      if (existingAdminByUsername) {
+      const [existingSameTypeByUsername, existingOtherTypeByUsername] = await Promise.all([
+        AccountModel.findOne({ username, _id: { $ne: adminId } }),
+        OtherModel.findOne({ username }),
+      ]);
+
+      if (existingSameTypeByUsername || existingOtherTypeByUsername) {
         return res.status(400).json({ status: 'error', message: 'Username is already in use' });
       }
     }
@@ -643,13 +715,15 @@ async function updateOwnerAdmin(req, res) {
     admin.username = username;
     await admin.save();
 
+    const roleLabel = roleDisplayLabel(admin.role);
+
     return res.json({
       status: 'ok',
-      message: 'Admin account updated successfully',
+      message: `${roleLabel} account updated successfully`,
       admin: sanitizeAdmin(admin),
     });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Failed to update admin account' });
+    return res.status(500).json({ status: 'error', message: 'Failed to update account' });
   }
 }
 
@@ -658,23 +732,29 @@ async function deleteOwnerAdmin(req, res) {
     const adminId = String(req.params.adminId || '').trim();
 
     if (!adminId) {
-      return res.status(400).json({ status: 'error', message: 'Admin ID is required' });
+      return res.status(400).json({ status: 'error', message: 'Account ID is required' });
     }
 
-    const admin = await Admin.findByIdAndDelete(adminId).select('-password');
+    let admin = await Admin.findByIdAndDelete(adminId).select('-password');
     if (!admin) {
-      return res.status(404).json({ status: 'error', message: 'Admin account not found' });
+      admin = await Consulter.findByIdAndDelete(adminId).select('-password');
+    }
+
+    if (!admin) {
+      return res.status(404).json({ status: 'error', message: 'Account not found' });
     }
 
     adminCreateCodeStore.delete(normalizeEmail(admin.email));
 
+    const roleLabel = roleDisplayLabel(admin.role);
+
     return res.json({
       status: 'ok',
-      message: 'Admin account deleted successfully',
+      message: `${roleLabel} account deleted successfully`,
       admin: sanitizeAdmin(admin),
     });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Failed to delete admin account' });
+    return res.status(500).json({ status: 'error', message: 'Failed to delete account' });
   }
 }
 
@@ -725,6 +805,65 @@ async function getAdminDashboard(req, res) {
     });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Failed to load admin dashboard' });
+  }
+}
+
+async function getConsulterDashboard(req, res) {
+  try {
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - 6);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const [
+      totalStudents,
+      totalFeedback,
+      criticalFeedback,
+      weeklyFeedback,
+      averageFeedbackResult,
+      recentFeedbackDocs,
+    ] = await Promise.all([
+      Student.countDocuments({}),
+      Feedback.countDocuments({}),
+      Feedback.countDocuments({ rating: { $lte: 2 } }),
+      Feedback.countDocuments({ createdAt: { $gte: startOfWeek } }),
+      Feedback.aggregate([
+        {
+          $group: {
+            _id: null,
+            average: { $avg: '$rating' },
+          },
+        },
+      ]),
+      Feedback.find({})
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .select('studentName studentEmail studentId rating comment createdAt'),
+    ]);
+
+    const averageRating = Number(averageFeedbackResult?.[0]?.average || 0);
+    const recentFeedback = recentFeedbackDocs.map((feedback) => ({
+      id: feedback._id,
+      studentName: feedback.studentName,
+      studentEmail: feedback.studentEmail,
+      studentId: feedback.studentId,
+      rating: feedback.rating,
+      comment: feedback.comment,
+      createdAt: feedback.createdAt,
+    }));
+
+    return res.json({
+      status: 'ok',
+      dashboard: {
+        totalStudents,
+        totalFeedback,
+        criticalFeedback,
+        weeklyFeedback,
+        averageRating: Number(averageRating.toFixed(2)),
+        recentFeedback,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Failed to load consulter dashboard' });
   }
 }
 
@@ -972,5 +1111,6 @@ module.exports = {
   getMe,
   getOwnerDashboard,
   getAdminDashboard,
+  getConsulterDashboard,
   uploadStudentPhoto,
 };
