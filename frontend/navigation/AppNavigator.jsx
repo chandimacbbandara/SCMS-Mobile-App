@@ -11,6 +11,7 @@ import StudentFeedbackScreen from '../screens/StudentFeedbackScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -28,9 +29,10 @@ export default function AppNavigator() {
   const { initializing, isAuthenticated, user } = useAuth();
   const isOwner = user?.role === 'owner';
   const isAdmin = user?.role === 'admin';
+  const isConsulter = user?.role === 'consulter';
 
-  const authStackKey = isOwner ? 'owner-stack' : isAdmin ? 'admin-stack' : 'student-stack';
-  const authInitialRoute = isOwner ? 'OwnerDashboard' : isAdmin ? 'AdminDashboard' : 'StudentDashboard';
+  const authStackKey = isOwner ? 'owner-stack' : isAdmin ? 'admin-stack' : isConsulter ? 'consulter-stack' : 'student-stack';
+  const authInitialRoute = isOwner ? 'OwnerDashboard' : isAdmin ? 'AdminDashboard' : isConsulter ? 'ConsulterDashboard' : 'StudentDashboard';
 
   if (initializing) {
     return <SplashLoader />;
@@ -111,6 +113,15 @@ export default function AppNavigator() {
               component={AdminDashboardScreen}
               options={{
                 title: 'Admin Dashboard',
+                headerShown: false,
+              }}
+            />
+          ) : isConsulter ? (
+            <Stack.Screen
+              name="ConsulterDashboard"
+              component={ConsulterDashboardScreen}
+              options={{
+                title: 'Consulter Dashboard',
                 headerShown: false,
               }}
             />

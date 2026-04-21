@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Student = require('../models/Student');
 const Admin = require('../models/Admin');
+const Consulter = require('../models/Consulter');
 
 const OWNER_EMAIL = 'admin@akbinstitute.edu.lk';
 
@@ -23,6 +24,16 @@ function sanitizeAdminUser(admin) {
     username: admin.username,
     role: admin.role || 'admin',
     createdAt: admin.createdAt,
+  };
+}
+
+function sanitizeConsulterUser(consulter) {
+  return {
+    id: consulter._id,
+    email: consulter.email,
+    username: consulter.username,
+    role: consulter.role || 'consulter',
+    createdAt: consulter.createdAt,
   };
 }
 
@@ -57,6 +68,16 @@ async function protect(req, res, next) {
       return next();
     }
 
+    if (decoded && (decoded.role === 'consulter' || decoded.type === 'consulter')) {
+      const consulter = await Consulter.findById(decoded.id).select('-password');
+      if (!consulter) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized: consulter not found' });
+      }
+
+      req.user = sanitizeConsulterUser(consulter);
+      return next();
+    }
+
     const student = await Student.findById(decoded.id).select('-password');
 
     if (!student) {
@@ -86,8 +107,17 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
+function requireConsulter(req, res, next) {
+  if (!req.user || req.user.role !== 'consulter') {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: consulter access required' });
+  }
+
+  return next();
+}
+
 module.exports = {
   protect,
   requireOwner,
   requireAdmin,
+  requireConsulter,
 };

@@ -19,9 +19,10 @@ const {
   getMe,
   getOwnerDashboard,
   getAdminDashboard,
+  getConsulterDashboard,
   uploadStudentPhoto,
 } = require('../controllers/authController');
-const { protect, requireOwner, requireAdmin } = require('../middleware/authMiddleware');
+const { protect, requireOwner, requireAdmin, requireConsulter } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -56,6 +57,7 @@ router.get('/owner/admin/list', protect, requireOwner, listOwnerAdmins);
 router.patch('/owner/admin/:adminId', protect, requireOwner, updateOwnerAdmin);
 router.delete('/owner/admin/:adminId', protect, requireOwner, deleteOwnerAdmin);
 router.get('/admin/dashboard', protect, requireAdmin, getAdminDashboard);
+router.get('/consulter/dashboard', protect, requireConsulter, getConsulterDashboard);
 
 router.post('/forgot-password/send-code', sendForgotCode);
 router.post('/forgot-password/verify-code', verifyForgotCode);

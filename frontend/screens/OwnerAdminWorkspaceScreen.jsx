@@ -58,6 +58,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
+  const [accountRole, setAccountRole] = useState('admin');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -104,7 +105,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
       });
       setAdmins(Array.isArray(response.admins) ? response.admins : []);
     } catch (error) {
-      setCreateMessage(error.message || 'Failed to load admin accounts');
+      setCreateMessage(error.message || 'Failed to load staff accounts');
       setCreateMessageType('error');
     } finally {
       setLoadingAdmins(false);
@@ -139,7 +140,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
 
     if (!isValidEmail(value)) {
       setSendMessageType('error');
-      setSendMessage('Please enter a valid admin email.');
+      setSendMessage('Please enter a valid account email.');
       return;
     }
 
@@ -178,13 +179,13 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
 
     if (!isValidEmail(value)) {
       setVerifyMessageType('error');
-      setVerifyMessage('Enter a valid admin email first.');
+      setVerifyMessage('Enter a valid account email first.');
       return;
     }
 
     if (!codeValue) {
       setVerifyMessageType('error');
-      setVerifyMessage('Enter the 6-digit code sent to admin email.');
+      setVerifyMessage('Enter the 6-digit code sent to account email.');
       return;
     }
 
@@ -217,7 +218,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
 
     if (!emailVerified) {
       setCreateMessageType('error');
-      setCreateMessage('Please verify admin email before account creation.');
+      setCreateMessage('Please verify account email before account creation.');
       return;
     }
 
@@ -242,23 +243,27 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
     setCreateLoading(true);
 
     try {
+      const roleLabel = accountRole === 'consulter' ? 'Consulter' : 'Admin';
+
       const response = await apiRequest('/auth/owner/admin/create', {
         method: 'POST',
         token,
         body: {
           email: emailValue,
           username: usernameValue,
+          role: accountRole,
           password,
           confirmPassword,
         },
       });
 
       setCreateMessageType('ok');
-      setCreateMessage(response.message || 'Admin account created successfully.');
+      setCreateMessage(response.message || `${roleLabel} account created successfully.`);
 
       setEmail('');
       setCode('');
       setUsername('');
+      setAccountRole('admin');
       setPassword('');
       setConfirmPassword('');
       setEmailCodeSent(false);
@@ -270,7 +275,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
       setActiveTab('manage');
     } catch (error) {
       setCreateMessageType('error');
-      setCreateMessage(error.message || 'Failed to create admin account');
+      setCreateMessage(error.message || 'Failed to create account');
     } finally {
       setCreateLoading(false);
     }
@@ -302,13 +307,13 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
 
     if (!adminId) {
       setManageMessageType('error');
-      setManageMessage('Please select an admin account to update.');
+      setManageMessage('Please select an account to update.');
       return;
     }
 
     if (!isValidEmail(emailValue)) {
       setManageMessageType('error');
-      setManageMessage('Please enter a valid admin email.');
+      setManageMessage('Please enter a valid account email.');
       return;
     }
 
@@ -353,7 +358,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
       cancelEditAdmin();
     } catch (error) {
       setManageMessageType('error');
-      setManageMessage(error.message || 'Failed to update admin account');
+      setManageMessage(error.message || 'Failed to update account');
     } finally {
       setUpdateLoading(false);
     }
@@ -379,7 +384,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
       await loadAdmins(false);
     } catch (error) {
       setManageMessageType('error');
-      setManageMessage(error.message || 'Failed to delete admin account');
+      setManageMessage(error.message || 'Failed to delete account');
     } finally {
       setDeleteLoadingId(null);
     }
@@ -389,13 +394,13 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
     const adminId = String(admin.id || '').trim();
     if (!adminId) {
       setManageMessageType('error');
-      setManageMessage('Invalid admin account.');
+      setManageMessage('Invalid account.');
       return;
     }
 
     Alert.alert(
-      'Delete Admin Account',
-      `Delete ${admin.username || 'this admin'} account? This action cannot be undone.`,
+      'Delete Account',
+      `Delete ${admin.username || 'this account'} account? This action cannot be undone.`,
       [
         {
           text: 'Cancel',
@@ -439,12 +444,12 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
         >
           <View style={styles.heroBadge}>
             <Ionicons name="shield-outline" size={12} color="#ffd0d7" />
-            <Text style={styles.heroBadgeText}>Owner admin workspace</Text>
+            <Text style={styles.heroBadgeText}>Owner staff workspace</Text>
           </View>
 
-          <Text style={styles.heroTitle}>Create and Manage Admin Accounts</Text>
+          <Text style={styles.heroTitle}>Create and Manage Staff Accounts</Text>
           <Text style={styles.heroSub}>
-            Verify admin emails, create secure admin credentials, and monitor created admin accounts from one mobile workspace.
+            Create Normal Admin or Consulter accounts, verify emails, and manage all support staff from one mobile workspace.
           </Text>
         </LinearGradient>
 
@@ -455,7 +460,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
             activeOpacity={0.9}
           >
             <Ionicons name="person-add-outline" size={16} color={activeTab === 'create' ? '#8f1d30' : '#475569'} />
-            <Text style={[styles.tabText, activeTab === 'create' ? styles.tabTextActive : null]}>Create Admin</Text>
+            <Text style={[styles.tabText, activeTab === 'create' ? styles.tabTextActive : null]}>Create Staff</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -464,7 +469,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
             activeOpacity={0.9}
           >
             <Ionicons name="people-outline" size={16} color={activeTab === 'manage' ? '#8f1d30' : '#475569'} />
-            <Text style={[styles.tabText, activeTab === 'manage' ? styles.tabTextActive : null]}>Manage Admins</Text>
+            <Text style={[styles.tabText, activeTab === 'manage' ? styles.tabTextActive : null]}>Manage Staff</Text>
           </TouchableOpacity>
         </View>
 
@@ -473,7 +478,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
             <View style={styles.stepGrid}>
               <View style={[styles.stepChip, createStepState === 1 ? styles.stepChipActive : null, createStepState > 1 ? styles.stepChipDone : null]}>
                 <Text style={styles.stepNo}>1</Text>
-                <Text style={styles.stepText}>Send code to admin email</Text>
+                <Text style={styles.stepText}>Send code to account email</Text>
               </View>
               <View style={[styles.stepChip, createStepState === 2 ? styles.stepChipActive : null, createStepState > 2 ? styles.stepChipDone : null]}>
                 <Text style={styles.stepNo}>2</Text>
@@ -481,13 +486,13 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
               </View>
               <View style={[styles.stepChip, createStepState === 3 ? styles.stepChipActive : null]}>
                 <Text style={styles.stepNo}>3</Text>
-                <Text style={styles.stepText}>Create admin credentials</Text>
+                <Text style={styles.stepText}>Create account credentials</Text>
               </View>
             </View>
 
             <View style={styles.infoStrip}>
               <Ionicons name="checkmark-circle-outline" size={16} color="#1f3a76" />
-              <Text style={styles.infoStripText}>Only verified admin emails can be used for account creation.</Text>
+              <Text style={styles.infoStripText}>Only verified emails can be used for creating Normal Admin or Consulter accounts.</Text>
             </View>
 
             <View style={styles.card}>
@@ -497,7 +502,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
               </View>
 
               <View style={styles.cardBody}>
-                <Text style={styles.inputLabel}>Admin Email</Text>
+                <Text style={styles.inputLabel}>Account Email</Text>
                 <View style={styles.inlineRow}>
                   <TextInput
                     value={email}
@@ -506,7 +511,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
                       setEmailCodeSent(false);
                       setEmailVerified(false);
                     }}
-                    placeholder="admin@example.com"
+                    placeholder="staff@example.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     style={[styles.input, styles.inlineInput]}
@@ -552,6 +557,27 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
               </View>
 
               <View style={[styles.cardBody, !isCredentialsEnabled ? styles.disabledSection : null]}>
+                <Text style={styles.inputLabel}>Account Role</Text>
+                <View style={styles.roleRow}>
+                  <TouchableOpacity
+                    style={[styles.roleBtn, accountRole === 'admin' ? styles.roleBtnActive : null]}
+                    onPress={() => setAccountRole('admin')}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={14} color={accountRole === 'admin' ? '#9f1239' : '#475569'} />
+                    <Text style={[styles.roleBtnText, accountRole === 'admin' ? styles.roleBtnTextActive : null]}>Normal Admin</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.roleBtn, accountRole === 'consulter' ? styles.roleBtnActive : null]}
+                    onPress={() => setAccountRole('consulter')}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="medkit-outline" size={14} color={accountRole === 'consulter' ? '#9f1239' : '#475569'} />
+                    <Text style={[styles.roleBtnText, accountRole === 'consulter' ? styles.roleBtnTextActive : null]}>Consulter</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <Text style={styles.inputLabel}>Username</Text>
                 <TextInput
                   value={username}
@@ -595,7 +621,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
                   ) : (
                     <>
                       <Ionicons name="person-add-outline" size={16} color="#ffffff" />
-                      <Text style={styles.primaryBtnText}>Create Admin Account</Text>
+                      <Text style={styles.primaryBtnText}>Create {accountRole === 'consulter' ? 'Consulter' : 'Admin'} Account</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -609,8 +635,8 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
         ) : (
           <View style={styles.card}>
             <View style={styles.cardHeaderPlain}>
-              <Text style={styles.cardTitle}>Manage Admin Accounts</Text>
-              <Text style={styles.cardSub}>Accounts created from owner workspace are listed here.</Text>
+              <Text style={styles.cardTitle}>Manage Staff Accounts</Text>
+              <Text style={styles.cardSub}>Admin and consulter accounts created from owner workspace are listed here.</Text>
             </View>
 
             <View style={styles.cardBody}>
@@ -621,13 +647,13 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
               {loadingAdmins ? (
                 <View style={styles.loaderWrap}>
                   <ActivityIndicator size="small" color="#b4233a" />
-                  <Text style={styles.loaderCaption}>Loading admin accounts...</Text>
+                  <Text style={styles.loaderCaption}>Loading staff accounts...</Text>
                 </View>
               ) : admins.length === 0 ? (
                 <View style={styles.emptyWrap}>
                   <Ionicons name="people-outline" size={24} color="#94a3b8" />
-                  <Text style={styles.emptyTitle}>No Admin Accounts Yet</Text>
-                  <Text style={styles.emptyText}>Create your first admin from the Create Admin tab.</Text>
+                  <Text style={styles.emptyTitle}>No Staff Accounts Yet</Text>
+                  <Text style={styles.emptyText}>Create your first account from the Create Staff tab.</Text>
                 </View>
               ) : (
                 <View style={styles.adminList}>
@@ -641,7 +667,7 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
                             <Text style={styles.adminAvatarText}>{String(admin.username || 'A').slice(0, 1).toUpperCase()}</Text>
                           </View>
                           <View style={styles.adminMeta}>
-                            <Text style={styles.adminName}>{admin.username || 'Admin'}</Text>
+                            <Text style={styles.adminName}>{admin.username || 'Account'}</Text>
                             <Text style={styles.adminEmail}>{admin.email || 'Not available'}</Text>
                           </View>
                         </View>
@@ -692,13 +718,13 @@ export default function OwnerAdminWorkspaceScreen({ navigation }) {
 
                         {isEditing && (
                           <View style={styles.editPanel}>
-                            <Text style={styles.editPanelTitle}>Update Admin Details</Text>
+                            <Text style={styles.editPanelTitle}>Update Account Details</Text>
 
                             <Text style={styles.inputLabel}>Email</Text>
                             <TextInput
                               value={editEmail}
                               onChangeText={setEditEmail}
-                              placeholder="admin@example.com"
+                              placeholder="staff@example.com"
                               keyboardType="email-address"
                               autoCapitalize="none"
                               style={styles.input}
@@ -888,6 +914,36 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#8f1d30',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  roleBtn: {
+    flex: 1,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#c8d5e2',
+    backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleBtnActive: {
+    borderColor: '#f3bdc6',
+    backgroundColor: '#fff6f8',
+  },
+  roleBtnText: {
+    marginLeft: 6,
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  roleBtnTextActive: {
+    color: '#9f1239',
   },
   stepGrid: {
     gap: 9,
