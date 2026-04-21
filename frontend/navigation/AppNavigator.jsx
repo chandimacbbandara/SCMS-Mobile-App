@@ -7,6 +7,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import StudentDashboardScreen from '../screens/StudentDashboardScreen';
+import StudentFeedbackScreen from '../screens/StudentFeedbackScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
@@ -114,14 +115,24 @@ export default function AppNavigator() {
               }}
             />
           ) : (
-            <Stack.Screen
-              name="StudentDashboard"
-              component={StudentDashboardScreen}
-              options={{
-                title: 'Student Dashboard',
-                headerShown: false,
-              }}
-            />
+            <>
+              <Stack.Screen
+                name="StudentDashboard"
+                component={StudentDashboardScreen}
+                options={{
+                  title: 'Student Dashboard',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="StudentFeedback"
+                component={StudentFeedbackScreen}
+                options={{
+                  title: 'Student Feedback',
+                  headerShown: false,
+                }}
+              />
+            </>
           )
         )}
       </Stack.Navigator>
