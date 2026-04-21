@@ -76,7 +76,7 @@ function formatMemberSince(value) {
   });
 }
 
-export default function StudentDashboardScreen() {
+export default function StudentDashboardScreen({ navigation }) {
   const { user, logout, apiBaseUrl, refreshMe } = useAuth();
   const [clock, setClock] = useState(getNowParts());
   const [refreshing, setRefreshing] = useState(false);
@@ -173,6 +173,13 @@ export default function StudentDashboardScreen() {
         <View style={styles.topNavRow}>
           <Text style={styles.topNavTitle}>Student Dashboard</Text>
           <View style={styles.topNavActions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('StudentFeedback')}
+            >
+              <Ionicons name="chatbox-ellipses-outline" size={18} color="#374151" />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleRefresh}>
               <Ionicons name="refresh-outline" size={18} color="#374151" />
             </TouchableOpacity>
@@ -306,10 +313,14 @@ export default function StudentDashboardScreen() {
               <Text style={styles.mobileActionText}>Refresh</Text>
             </TouchableOpacity>
 
-            <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
-              <Ionicons name="chatbubbles-outline" size={18} color="#6b7280" />
-              <Text style={styles.mobileActionText}>Concerns Soon</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.mobileActionBtn}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('StudentFeedback')}
+            >
+              <Ionicons name="chatbox-ellipses-outline" size={18} color="#d97706" />
+              <Text style={styles.mobileActionText}>Give Feedback</Text>
+            </TouchableOpacity>
 
             <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
               <Ionicons name="notifications-outline" size={18} color="#6b7280" />
@@ -350,10 +361,10 @@ export default function StudentDashboardScreen() {
               <Text style={[styles.bottomTabText, styles.bottomTabTextActive]}>Dashboard</Text>
             </View>
 
-            <View style={styles.bottomTab}>
+            <TouchableOpacity style={styles.bottomTab} activeOpacity={0.85} onPress={() => navigation.navigate('StudentFeedback')}>
               <Ionicons name="chatbox-ellipses-outline" size={16} color="#94a3b8" />
-              <Text style={styles.bottomTabText}>Concerns</Text>
-            </View>
+              <Text style={styles.bottomTabText}>Feedback</Text>
+            </TouchableOpacity>
 
             <View style={styles.bottomTab}>
               <Ionicons name="person-circle-outline" size={16} color="#94a3b8" />
