@@ -46,5 +46,45 @@ const deleteReply = async (req, res) => {
     }
 };
 
+const updateReply = async (req, res) => {
+    const adminId = req.user?.id || req.user?._id || req.admin?._id;
+    if (!adminId) {
+        return res.status(401).send({ message: 'Unauthorized admin user' });
+    }
+
+    const hasReplyMessage = Object.prototype.hasOwnProperty.call(req.body, 'replyMessage');
+    const hasImage = Object.prototype.hasOwnProperty.call(req.body, 'image');
+
+    if (!hasReplyMessage && !hasImage) {
+        return res.status(400).send({ message: 'Provide replyMessage or image to update' });
+    }
+
+    if (hasReplyMessage && !String(req.body.replyMessage || '').trim()) {
+        return res.status(400).send({ message: 'replyMessage cannot be empty' });
+    }
+
+    try {
+        const adminReply = await AdminReply.findById(req.params.id);
+
+        if (!adminReply) {
+            return res.status(404).send({ message: 'Reply not found' });
+        }
+
+        if (hasReplyMessage) {
+            adminReply.replyMessage = req.body.replyMessage;
+        }
+
+        if (hasImage) {
+            adminReply.image = req.body.image;
+        }
+
+        await adminReply.save();
+        return res.status(200).send({ message: 'Reply updated successfully', adminReply });
+    } catch (err) {
+        return res.status(500).send({ message: 'Unable to update reply' });
+    }
+};
+
 exports.submitReply = submitReply;
 exports.deleteReply = deleteReply;
+exports.updateReply = updateReply;
