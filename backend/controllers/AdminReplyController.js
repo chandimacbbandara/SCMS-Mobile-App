@@ -25,6 +25,26 @@ const submitReply = async (req, res) => {
     } catch (err) {
         return res.status(500).send({ message: 'Unable to submit reply' });
     }
+}
+
+const deleteReply = async (req, res) => {
+    const adminId = req.user?.id || req.user?._id || req.admin?._id;
+    if (!adminId) {
+        return res.status(401).send({ message: 'Unauthorized admin user' });
+    }
+
+    try {
+        const adminReply = await AdminReply.findByIdAndDelete(req.params.id);
+
+        if (!adminReply) {
+            return res.status(404).send({ message: 'Reply not found' });
+        }
+
+        return res.status(200).send({ message: 'Reply deleted successfully', adminReply });
+    } catch (err) {
+        return res.status(500).send({ message: 'Unable to delete reply' });
+    }
 };
 
 exports.submitReply = submitReply;
+exports.deleteReply = deleteReply;
