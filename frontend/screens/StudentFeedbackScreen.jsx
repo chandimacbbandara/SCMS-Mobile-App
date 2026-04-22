@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -64,17 +65,20 @@ export default function StudentFeedbackScreen({ navigation }) {
   const { token, user } = useAuth();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [feedbackHistory, setFeedbackHistory] = useState([]);
+  const [myFeedback, setMyFeedback] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   const commentLength = comment.trim().length;
 
-  const canSubmit = useMemo(() => {
+  const canSave = useMemo(() => {
     return Boolean(token) && rating >= 1 && commentLength >= 5 && !submitting;
   }, [commentLength, rating, submitting, token]);
+
+  const hasExistingFeedback = Boolean(myFeedback?.id);
 
   const loadMyFeedback = useCallback(async () => {
     if (!token) {
@@ -89,7 +93,17 @@ export default function StudentFeedbackScreen({ navigation }) {
       });
 
       const history = Array.isArray(response.feedback) ? response.feedback : [];
-      setFeedbackHistory(history);
+      const latest = history[0] || null;
+
+      setMyFeedback(latest);
+
+      if (latest) {
+        setRating(Number(latest.rating || 0));
+        setComment(String(latest.comment || ''));
+      } else {
+        setRating(0);
+        setComment('');
+      }
     } catch (error) {
       setErrorMessage(error.message || 'Failed to load previous feedback');
     } finally {
@@ -103,7 +117,7 @@ export default function StudentFeedbackScreen({ navigation }) {
     }, [loadMyFeedback])
   );
 
-  const handleSubmit = useCallback(async () => {
+  const handleSaveFeedback = useCallback(async () => {
     setErrorMessage('');
     setSuccessMessage('');
 
@@ -120,8 +134,8 @@ export default function StudentFeedbackScreen({ navigation }) {
     setSubmitting(true);
 
     try {
-      const response = await apiRequest('/feedback/overall', {
-        method: 'POST',
+      const response = await apiRequest(hasExistingFeedback ? '/feedback/mine' : '/feedback/overall', {
+        method: hasExistingFeedback ? 'PUT' : 'POST',
         token,
         body: {
           rating,
@@ -129,16 +143,50 @@ export default function StudentFeedbackScreen({ navigation }) {
         },
       });
 
-      setSuccessMessage(response.message || 'Feedback submitted successfully');
-      setRating(0);
-      setComment('');
+      setSuccessMessage(response.message || (hasExistingFeedback ? 'Feedback updated successfully' : 'Feedback submitted successfully'));
       await loadMyFeedback();
     } catch (error) {
-      setErrorMessage(error.message || 'Failed to submit feedback');
+      setErrorMessage(error.message || 'Failed to save feedback');
     } finally {
       setSubmitting(false);
     }
-  }, [comment, commentLength, loadMyFeedback, rating, token]);
+  }, [comment, commentLength, hasExistingFeedback, loadMyFeedback, rating, token]);
+
+  const handleDeleteFeedback = useCallback(() => {
+    Alert.alert(
+      'Delete feedback',
+      'Are you sure you want to delete your feedback?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setErrorMessage('');
+            setSuccessMessage('');
+            setDeleting(true);
+
+            try {
+              const response = await apiRequest('/feedback/mine', {
+                method: 'DELETE',
+                token,
+              });
+
+              setSuccessMessage(response.message || 'Feedback deleted successfully');
+              await loadMyFeedback();
+            } catch (error) {
+              setErrorMessage(error.message || 'Failed to delete feedback');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [loadMyFeedback, token]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -167,7 +215,11 @@ export default function StudentFeedbackScreen({ navigation }) {
 
           <View style={styles.formCard}>
             <Text style={styles.sectionTitle}>Rate the app</Text>
-            <Text style={styles.hintText}>1 means poor, 5 means excellent.</Text>
+            <Text style={styles.hintText}>
+              {hasExistingFeedback
+                ? 'You can update or delete your existing feedback.'
+                : '1 means poor, 5 means excellent.'}
+            </Text>
 
             <View style={styles.starRow}>
               {STAR_VALUES.map((value) => {
@@ -209,51 +261,63 @@ export default function StudentFeedbackScreen({ navigation }) {
             {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
 
             <TouchableOpacity
-              style={[styles.submitButton, !canSubmit ? styles.submitButtonDisabled : null]}
-              onPress={handleSubmit}
-              disabled={!canSubmit}
+              style={[styles.submitButton, !canSave ? styles.submitButtonDisabled : null]}
+              onPress={handleSaveFeedback}
+              disabled={!canSave}
               activeOpacity={0.9}
             >
               {submitting ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
                 <>
-                  <Ionicons name="send-outline" size={16} color="#ffffff" />
-                  <Text style={styles.submitButtonText}>Submit Feedback</Text>
+                  <Ionicons name={hasExistingFeedback ? 'create-outline' : 'send-outline'} size={16} color="#ffffff" />
+                  <Text style={styles.submitButtonText}>{hasExistingFeedback ? 'Update Feedback' : 'Submit Feedback'}</Text>
                 </>
               )}
             </TouchableOpacity>
+
+            {hasExistingFeedback ? (
+              <TouchableOpacity
+                style={[styles.deleteButton, deleting ? styles.deleteButtonDisabled : null]}
+                onPress={handleDeleteFeedback}
+                disabled={deleting}
+                activeOpacity={0.9}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#dc2626" />
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                    <Text style={styles.deleteButtonText}>Delete Feedback</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           <View style={styles.historyCard}>
             <View style={styles.historyHeaderRow}>
-              <Text style={styles.sectionTitle}>My Previous Feedback</Text>
-              <Text style={styles.historyMeta}>{feedbackHistory.length} records</Text>
+              <Text style={styles.sectionTitle}>My Feedback</Text>
+              <Text style={styles.historyMeta}>{hasExistingFeedback ? '1 record' : '0 records'}</Text>
             </View>
 
             {loadingHistory ? (
               <View style={styles.historyLoaderWrap}>
                 <ActivityIndicator size="small" color="#e53935" />
-                <Text style={styles.historyLoaderText}>Loading history...</Text>
+                <Text style={styles.historyLoaderText}>Loading feedback...</Text>
               </View>
-            ) : feedbackHistory.length === 0 ? (
+            ) : !hasExistingFeedback ? (
               <View style={styles.emptyHistoryState}>
                 <Ionicons name="chatbox-ellipses-outline" size={26} color="#94a3b8" />
                 <Text style={styles.emptyHistoryTitle}>No feedback yet</Text>
-                <Text style={styles.emptyHistoryText}>Your submitted feedback will appear here.</Text>
+                <Text style={styles.emptyHistoryText}>You can submit only one feedback. You can edit or delete it anytime.</Text>
               </View>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyScrollContent}>
-                {feedbackHistory.map((entry) => (
-                  <FeedbackCard
-                    key={entry.id}
-                    rating={entry.rating}
-                    comment={entry.comment}
-                    category={`Submitted ${formatDate(entry.createdAt)}`}
-                    width={265}
-                  />
-                ))}
-              </ScrollView>
+              <FeedbackCard
+                rating={myFeedback.rating}
+                comment={myFeedback.comment}
+                category={`Updated ${formatDate(myFeedback.updatedAt || myFeedback.createdAt)}`}
+              />
             )}
           </View>
         </ScrollView>
@@ -417,6 +481,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  deleteButton: {
+    marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    backgroundColor: '#fff1f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 12,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.65,
+  },
+  deleteButtonText: {
+    color: '#dc2626',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   historyCard: {
     borderRadius: 16,
     borderWidth: 1,
@@ -469,8 +553,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  historyScrollContent: {
-    paddingRight: 4,
   },
 });
