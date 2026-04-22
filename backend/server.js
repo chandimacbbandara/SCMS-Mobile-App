@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const adminReplyRoutes = require('./routes/AdminReplyRoutes');
 
 const app = express();
 app.use(express.json());
@@ -18,6 +19,7 @@ app.use('/uploads', express.static(uploadsDir));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/admin-reply', adminReplyRoutes);
 
 // Connect to MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
