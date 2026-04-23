@@ -151,15 +151,6 @@ export default function AdminDashboardScreen({ navigation }) {
             </View>
 
             <View style={styles.topActions}>
-              <TouchableOpacity
-                style={styles.feedbackBtn}
-                onPress={() => navigation.navigate('FeedbackInsights')}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="chatbox-ellipses-outline" size={15} color="#ffffff" />
-                <Text style={styles.feedbackText}>Feedback</Text>
-              </TouchableOpacity>
-
               <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
                 <Ionicons name="log-out-outline" size={16} color="#ffffff" />
                 <Text style={styles.logoutText}>Logout</Text>
