@@ -6,7 +6,7 @@ const feedbackSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Student',
       required: true,
-      index: true,
+      unique: true,
     },
     studentName: {
       type: String,
