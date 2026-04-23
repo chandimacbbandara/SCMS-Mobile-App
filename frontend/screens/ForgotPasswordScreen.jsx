@@ -35,6 +35,14 @@ function allRulesValid(rules) {
 export default function ForgotPasswordScreen({ navigation }) {
   const { sendForgotCode, verifyForgotCode, resetForgotPassword } = useAuth();
 
+  function goGuestHome() {
+    navigation.navigate('GuestTabs', { screen: 'Home' });
+  }
+
+  function goGuestLogin() {
+    navigation.navigate('GuestTabs', { screen: 'Login' });
+  }
+
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -119,7 +127,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       const response = await resetForgotPassword(email.trim(), newPassword, confirmPassword);
       setResetStatus(response.message || 'Password reset successful');
       setTimeout(() => {
-        navigation.navigate('Login');
+        goGuestLogin();
       }, 1000);
     } catch (error) {
       setErrorMessage(error.message || 'Password reset failed');
@@ -133,12 +141,12 @@ export default function ForgotPasswordScreen({ navigation }) {
       <KeyboardAvoidingView style={styles.flexOne} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
           <View style={styles.topRow}>
-            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Home')} activeOpacity={0.9}>
+            <TouchableOpacity style={styles.navGhostBtn} onPress={goGuestHome} activeOpacity={0.9}>
               <Ionicons name="chevron-back" size={16} color="#111827" />
               <Text style={styles.navGhostText}>Back</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navGhostBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.9}>
+            <TouchableOpacity style={styles.navGhostBtn} onPress={goGuestLogin} activeOpacity={0.9}>
               <Text style={styles.navGhostText}>Login</Text>
             </TouchableOpacity>
           </View>

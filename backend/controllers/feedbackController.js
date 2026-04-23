@@ -13,6 +13,17 @@ function sanitizeFeedback(feedback) {
   };
 }
 
+function sanitizePublicFeedback(feedback) {
+  return {
+    id: feedback._id,
+    rating: feedback.rating,
+    comment: feedback.comment,
+    createdAt: feedback.createdAt,
+    updatedAt: feedback.updatedAt,
+    studentName: feedback.studentName,
+  };
+}
+
 function validateRating(rating) {
   const parsed = Number(rating);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) {
@@ -39,6 +50,111 @@ function buildStudentIdentity(user) {
 
 function isDuplicateKeyError(error) {
   return Boolean(error && error.code === 11000);
+}
+
+function normalizeSortOption(sortValue) {
+  const value = String(sortValue || '').trim().toLowerCase();
+
+  if (value === 'rating_asc' || value === 'rating_desc' || value === 'latest') {
+    return value;
+  }
+
+  return 'latest';
+}
+
+function getSortQuery(sortOption) {
+  if (sortOption === 'rating_desc') {
+    return { rating: -1, createdAt: -1 };
+  }
+
+  if (sortOption === 'rating_asc') {
+    return { rating: 1, createdAt: -1 };
+  }
+
+  return { createdAt: -1 };
+}
+
+async function getFeedbackSummary() {
+  const [totalFeedback, averageResult, distributionResult] = await Promise.all([
+    Feedback.countDocuments({}),
+    Feedback.aggregate([
+      {
+        $group: {
+          _id: null,
+          average: { $avg: '$rating' },
+        },
+      },
+    ]),
+    Feedback.aggregate([
+      {
+        $group: {
+          _id: '$rating',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+  ]);
+
+  const feedbackDistribution = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+
+  distributionResult.forEach((entry) => {
+    const rating = Number(entry?._id || 0);
+    if (rating >= 1 && rating <= 5) {
+      feedbackDistribution[rating] = Number(entry?.count || 0);
+    }
+  });
+
+  return {
+    totalFeedback,
+    averageRating: Number(Number(averageResult?.[0]?.average || 0).toFixed(2)),
+    feedbackDistribution,
+  };
+}
+
+async function getFeedbackInsights(req, res) {
+  try {
+    if (!req.user || !req.user.role) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized user' });
+    }
+
+    const role = String(req.user.role || '').toLowerCase();
+    const sort = normalizeSortOption(req.query.sort);
+    const limitQuery = Number(req.query.limit || 120);
+    const limit = Number.isFinite(limitQuery)
+      ? Math.min(Math.max(Math.trunc(limitQuery), 1), 300)
+      : 120;
+
+    const summary = await getFeedbackSummary();
+
+    const allowedRole = role === 'owner' || role === 'admin' || role === 'consulter' || role === 'student';
+    if (!allowedRole) {
+      return res.status(403).json({ status: 'error', message: 'Forbidden: role cannot access feedback insights' });
+    }
+
+    const historyDocs = await Feedback.find({})
+      .sort(getSortQuery(sort))
+      .limit(limit);
+
+    const history = role === 'student'
+      ? historyDocs.map((entry) => sanitizePublicFeedback(entry))
+      : historyDocs.map((entry) => sanitizeFeedback(entry));
+
+    return res.json({
+      status: 'ok',
+      sort,
+      scope: role === 'student' ? 'public' : 'all',
+      summary,
+      history,
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Failed to load feedback insights' });
+  }
 }
 
 async function submitOverallFeedback(req, res) {
@@ -205,6 +321,7 @@ async function deleteMyFeedback(req, res) {
 
 module.exports = {
   submitOverallFeedback,
+  getFeedbackInsights,
   getMyFeedback,
   updateMyFeedback,
   deleteMyFeedback,

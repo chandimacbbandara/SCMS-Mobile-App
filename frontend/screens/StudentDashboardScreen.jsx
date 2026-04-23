@@ -173,13 +173,6 @@ export default function StudentDashboardScreen({ navigation }) {
         <View style={styles.topNavRow}>
           <Text style={styles.topNavTitle}>Student Dashboard</Text>
           <View style={styles.topNavActions}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('StudentFeedback')}
-            >
-              <Ionicons name="chatbox-ellipses-outline" size={18} color="#374151" />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleRefresh}>
               <Ionicons name="refresh-outline" size={18} color="#374151" />
             </TouchableOpacity>
@@ -313,14 +306,10 @@ export default function StudentDashboardScreen({ navigation }) {
               <Text style={styles.mobileActionText}>Refresh</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.mobileActionBtn}
-              activeOpacity={0.9}
-              onPress={() => navigation.navigate('StudentFeedback')}
-            >
-              <Ionicons name="chatbox-ellipses-outline" size={18} color="#d97706" />
-              <Text style={styles.mobileActionText}>Give Feedback</Text>
-            </TouchableOpacity>
+            <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
+              <Ionicons name="analytics-outline" size={18} color="#6b7280" />
+              <Text style={styles.mobileActionText}>Live Profile</Text>
+            </View>
 
             <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
               <Ionicons name="notifications-outline" size={18} color="#6b7280" />
@@ -346,30 +335,6 @@ export default function StudentDashboardScreen({ navigation }) {
             <Text style={styles.emptyStateText}>
               This dashboard now shows real data only. Concern records will appear when the concern backend API is connected.
             </Text>
-          </View>
-        </View>
-
-        <View style={[styles.panelCard, styles.mobileBottomBar]}>
-          <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>App Navigation</Text>
-            <Text style={styles.panelSubtitle}>Mobile style</Text>
-          </View>
-
-          <View style={styles.bottomTabsWrap}>
-            <View style={[styles.bottomTab, styles.bottomTabActive]}>
-              <Ionicons name="home" size={16} color="#e53935" />
-              <Text style={[styles.bottomTabText, styles.bottomTabTextActive]}>Dashboard</Text>
-            </View>
-
-            <TouchableOpacity style={styles.bottomTab} activeOpacity={0.85} onPress={() => navigation.navigate('StudentFeedback')}>
-              <Ionicons name="chatbox-ellipses-outline" size={16} color="#94a3b8" />
-              <Text style={styles.bottomTabText}>Feedback</Text>
-            </TouchableOpacity>
-
-            <View style={styles.bottomTab}>
-              <Ionicons name="person-circle-outline" size={16} color="#94a3b8" />
-              <Text style={styles.bottomTabText}>Profile</Text>
-            </View>
           </View>
         </View>
       </ScrollView>

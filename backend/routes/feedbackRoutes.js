@@ -2,6 +2,7 @@ const express = require('express');
 const { protect } = require('../middleware/authMiddleware');
 const {
   submitOverallFeedback,
+  getFeedbackInsights,
   getMyFeedback,
   updateMyFeedback,
   deleteMyFeedback,
@@ -11,6 +12,7 @@ const router = express.Router();
 
 router.use(protect);
 
+router.get('/insights', getFeedbackInsights);
 router.get('/mine', getMyFeedback);
 router.post('/overall', submitOverallFeedback);
 router.put('/mine', updateMyFeedback);

@@ -758,6 +758,51 @@ async function deleteOwnerAdmin(req, res) {
   }
 }
 
+async function getFeedbackSummaryStats() {
+  const [totalFeedback, averageFeedbackResult, feedbackDistributionResult] = await Promise.all([
+    Feedback.countDocuments({}),
+    Feedback.aggregate([
+      {
+        $group: {
+          _id: null,
+          average: { $avg: '$rating' },
+        },
+      },
+    ]),
+    Feedback.aggregate([
+      {
+        $group: {
+          _id: '$rating',
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+  ]);
+
+  const feedbackDistribution = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+
+  feedbackDistributionResult.forEach((item) => {
+    const rating = Number(item?._id || 0);
+    if (rating >= 1 && rating <= 5) {
+      feedbackDistribution[rating] = Number(item?.count || 0);
+    }
+  });
+
+  const averageRating = Number(Number(averageFeedbackResult?.[0]?.average || 0).toFixed(2));
+
+  return {
+    totalFeedback,
+    averageRating,
+    feedbackDistribution,
+  };
+}
+
 async function getAdminDashboard(req, res) {
   try {
     const startOfMonth = new Date();
@@ -770,6 +815,7 @@ async function getAdminDashboard(req, res) {
       newStudentsThisMonth,
       totalAdmins,
       recentStudentDocs,
+      feedbackSummary,
     ] = await Promise.all([
       Student.countDocuments({}),
       Student.countDocuments({ studentIdPhoto: { $nin: [null, ''] } }),
@@ -779,6 +825,7 @@ async function getAdminDashboard(req, res) {
         .sort({ createdAt: -1 })
         .limit(8)
         .select('firstName lastName email studentId createdAt'),
+      getFeedbackSummaryStats(),
     ]);
 
     const studentsWithoutPhoto = Math.max(totalStudents - studentsWithPhoto, 0);
@@ -800,6 +847,9 @@ async function getAdminDashboard(req, res) {
         studentsWithoutPhoto,
         newStudentsThisMonth,
         totalAdmins,
+        totalFeedback: feedbackSummary.totalFeedback,
+        averageRating: feedbackSummary.averageRating,
+        feedbackDistribution: feedbackSummary.feedbackDistribution,
         recentStudents,
       },
     });
@@ -816,31 +866,21 @@ async function getConsulterDashboard(req, res) {
 
     const [
       totalStudents,
-      totalFeedback,
+      feedbackSummary,
       criticalFeedback,
       weeklyFeedback,
-      averageFeedbackResult,
       recentFeedbackDocs,
     ] = await Promise.all([
       Student.countDocuments({}),
-      Feedback.countDocuments({}),
+      getFeedbackSummaryStats(),
       Feedback.countDocuments({ rating: { $lte: 2 } }),
       Feedback.countDocuments({ createdAt: { $gte: startOfWeek } }),
-      Feedback.aggregate([
-        {
-          $group: {
-            _id: null,
-            average: { $avg: '$rating' },
-          },
-        },
-      ]),
       Feedback.find({})
         .sort({ createdAt: -1 })
         .limit(8)
         .select('studentName studentEmail studentId rating comment createdAt'),
     ]);
 
-    const averageRating = Number(averageFeedbackResult?.[0]?.average || 0);
     const recentFeedback = recentFeedbackDocs.map((feedback) => ({
       id: feedback._id,
       studentName: feedback.studentName,
@@ -855,10 +895,11 @@ async function getConsulterDashboard(req, res) {
       status: 'ok',
       dashboard: {
         totalStudents,
-        totalFeedback,
+        totalFeedback: feedbackSummary.totalFeedback,
         criticalFeedback,
         weeklyFeedback,
-        averageRating: Number(averageRating.toFixed(2)),
+        averageRating: feedbackSummary.averageRating,
+        feedbackDistribution: feedbackSummary.feedbackDistribution,
         recentFeedback,
       },
     });
@@ -1035,12 +1076,14 @@ async function getOwnerDashboard(req, res) {
       newStudentsThisMonth,
       totalAdmins,
       latestStudentDoc,
+      feedbackSummary,
     ] = await Promise.all([
       Student.countDocuments({}),
       Student.countDocuments({ studentIdPhoto: { $nin: [null, ''] } }),
       Student.countDocuments({ createdAt: { $gte: startOfMonth } }),
       Admin.countDocuments({}),
       Student.findOne({}).sort({ createdAt: -1 }).select('firstName lastName email studentId role studentIdPhoto createdAt'),
+      getFeedbackSummaryStats(),
     ]);
 
     const studentsWithoutPhoto = Math.max(totalStudents - studentsWithPhoto, 0);
@@ -1066,6 +1109,9 @@ async function getOwnerDashboard(req, res) {
         studentsWithoutPhoto,
         newStudentsThisMonth,
         totalAdmins,
+        totalFeedback: feedbackSummary.totalFeedback,
+        averageRating: feedbackSummary.averageRating,
+        feedbackDistribution: feedbackSummary.feedbackDistribution,
         latestStudent,
       },
     });
