@@ -12,6 +12,7 @@ import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
+import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -106,25 +107,53 @@ export default function AppNavigator() {
                   headerShown: false,
                 }}
               />
+              <Stack.Screen
+                name="FeedbackInsights"
+                component={FeedbackInsightsScreen}
+                options={{
+                  title: 'Feedback Page',
+                  headerShown: false,
+                }}
+              />
             </>
           ) : isAdmin ? (
-            <Stack.Screen
-              name="AdminDashboard"
-              component={AdminDashboardScreen}
-              options={{
-                title: 'Admin Dashboard',
-                headerShown: false,
-              }}
-            />
+            <>
+              <Stack.Screen
+                name="AdminDashboard"
+                component={AdminDashboardScreen}
+                options={{
+                  title: 'Admin Dashboard',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="FeedbackInsights"
+                component={FeedbackInsightsScreen}
+                options={{
+                  title: 'Feedback Page',
+                  headerShown: false,
+                }}
+              />
+            </>
           ) : isConsulter ? (
-            <Stack.Screen
-              name="ConsulterDashboard"
-              component={ConsulterDashboardScreen}
-              options={{
-                title: 'Consulter Dashboard',
-                headerShown: false,
-              }}
-            />
+            <>
+              <Stack.Screen
+                name="ConsulterDashboard"
+                component={ConsulterDashboardScreen}
+                options={{
+                  title: 'Consulter Dashboard',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="FeedbackInsights"
+                component={FeedbackInsightsScreen}
+                options={{
+                  title: 'Feedback Page',
+                  headerShown: false,
+                }}
+              />
+            </>
           ) : (
             <>
               <Stack.Screen

@@ -45,7 +45,7 @@ function getCareLevel(rating) {
   return { label: 'Stable', color: '#166534', bg: '#dcfce7' };
 }
 
-export default function ConsulterDashboardScreen() {
+export default function ConsulterDashboardScreen({ navigation }) {
   const { token, user, logout } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
@@ -69,11 +69,11 @@ export default function ConsulterDashboardScreen() {
     setErrorMessage('');
 
     try {
-      const response = await apiRequest('/auth/consulter/dashboard', {
+      const result = await apiRequest('/auth/consulter/dashboard', {
         method: 'GET',
         token,
       });
-      setDashboard(response.dashboard || null);
+      setDashboard(result.dashboard || null);
     } catch (error) {
       setErrorMessage(error.message || 'Failed to load consulter dashboard');
     } finally {
@@ -121,7 +121,6 @@ export default function ConsulterDashboardScreen() {
   }, [dashboard?.criticalFeedback, dashboard?.totalFeedback, dashboard?.totalStudents, dashboard?.weeklyFeedback]);
 
   const recentFeedback = Array.isArray(dashboard?.recentFeedback) ? dashboard.recentFeedback : [];
-  const averageRating = Number(dashboard?.averageRating || 0).toFixed(2);
   const consulterName = user?.username || user?.email || 'Consulter';
 
   return (
@@ -143,10 +142,21 @@ export default function ConsulterDashboardScreen() {
               <Text style={styles.badgeText}>Consulter Care Desk</Text>
             </View>
 
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
-              <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+            <View style={styles.topActions}>
+              <TouchableOpacity
+                style={styles.feedbackBtn}
+                onPress={() => navigation.navigate('FeedbackInsights')}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="chatbox-ellipses-outline" size={15} color="#ffffff" />
+                <Text style={styles.feedbackText}>Feedback</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
+                <Ionicons name="log-out-outline" size={16} color="#ffffff" />
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <Text style={styles.heroTitle}>Student Wellness Dashboard</Text>
@@ -156,10 +166,6 @@ export default function ConsulterDashboardScreen() {
             <View style={styles.heroMetaPill}>
               <Ionicons name="person-outline" size={12} color="#ffffff" />
               <Text style={styles.heroMetaText}>{consulterName}</Text>
-            </View>
-            <View style={styles.heroMetaPill}>
-              <Ionicons name="pulse-outline" size={12} color="#ffffff" />
-              <Text style={styles.heroMetaText}>Average rating: {averageRating}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -260,6 +266,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 9,
   },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
   badge: {
     borderRadius: 999,
     borderWidth: 1,
@@ -285,6 +296,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  feedbackBtn: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.17)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.33)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feedbackText: {
+    marginLeft: 4,
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   logoutText: {
     marginLeft: 4,

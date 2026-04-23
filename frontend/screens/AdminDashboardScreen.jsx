@@ -39,7 +39,7 @@ function formatTimeNow(date) {
   });
 }
 
-export default function AdminDashboardScreen() {
+export default function AdminDashboardScreen({ navigation }) {
   const { token, user, logout } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
@@ -64,11 +64,11 @@ export default function AdminDashboardScreen() {
     setErrorMessage('');
 
     try {
-      const response = await apiRequest('/auth/admin/dashboard', {
+      const result = await apiRequest('/auth/admin/dashboard', {
         method: 'GET',
         token,
       });
-      setDashboard(response.dashboard || null);
+      setDashboard(result.dashboard || null);
     } catch (error) {
       setErrorMessage(error.message || 'Failed to load admin dashboard');
     } finally {
@@ -150,10 +150,21 @@ export default function AdminDashboardScreen() {
               <Text style={styles.badgeText}>Admin Panel</Text>
             </View>
 
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
-              <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+            <View style={styles.topActions}>
+              <TouchableOpacity
+                style={styles.feedbackBtn}
+                onPress={() => navigation.navigate('FeedbackInsights')}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="chatbox-ellipses-outline" size={15} color="#ffffff" />
+                <Text style={styles.feedbackText}>Feedback</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
+                <Ionicons name="log-out-outline" size={16} color="#ffffff" />
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <Text style={styles.heroTitle}>Admin Dashboard</Text>
@@ -261,6 +272,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 9,
   },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
   badge: {
     borderRadius: 999,
     borderWidth: 1,
@@ -292,6 +308,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  feedbackBtn: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feedbackText: {
+    marginLeft: 4,
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   logoutText: {
     marginLeft: 4,

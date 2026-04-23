@@ -17,8 +17,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../lib/api';
 import FeedbackCard from '../components/FeedbackCard';
+import FeedbackDistributionCard from '../components/FeedbackDistributionCard';
 
 const STAR_VALUES = [1, 2, 3, 4, 5];
+const SORT_OPTIONS = [
+  { id: 'rating_desc', label: 'Highest Rating' },
+  { id: 'rating_asc', label: 'Lowest Rating' },
+  { id: 'latest', label: 'Latest' },
+];
 
 function formatDate(value) {
   if (!value) {
@@ -34,6 +40,25 @@ function formatDate(value) {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return 'Recently submitted';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Recently submitted';
+  }
+
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -66,6 +91,9 @@ export default function StudentFeedbackScreen({ navigation }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [myFeedback, setMyFeedback] = useState(null);
+  const [overallSummary, setOverallSummary] = useState(null);
+  const [feedbackHistory, setFeedbackHistory] = useState([]);
+  const [sortOption, setSortOption] = useState('rating_desc');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -104,12 +132,24 @@ export default function StudentFeedbackScreen({ navigation }) {
         setRating(0);
         setComment('');
       }
+
+      try {
+        const insightsResponse = await apiRequest(`/feedback/insights?sort=${sortOption}&limit=80`, {
+          method: 'GET',
+          token,
+        });
+        setOverallSummary(insightsResponse.summary || null);
+        setFeedbackHistory(Array.isArray(insightsResponse.history) ? insightsResponse.history : []);
+      } catch (insightsError) {
+        setOverallSummary(null);
+        setFeedbackHistory([]);
+      }
     } catch (error) {
       setErrorMessage(error.message || 'Failed to load previous feedback');
     } finally {
       setLoadingHistory(false);
     }
-  }, [token]);
+  }, [sortOption, token]);
 
   useFocusEffect(
     useCallback(() => {
@@ -212,6 +252,14 @@ export default function StudentFeedbackScreen({ navigation }) {
               {`${String(user?.firstName || '').trim()} ${String(user?.lastName || '').trim()}`.trim() || 'Student'}
             </Text>
           </View>
+
+          <FeedbackDistributionCard
+            title="Ratings and reviews"
+            subtitle="Overall app feedback from all student users"
+            averageRating={overallSummary?.averageRating}
+            totalRatings={overallSummary?.totalFeedback}
+            distribution={overallSummary?.feedbackDistribution}
+          />
 
           <View style={styles.formCard}>
             <Text style={styles.sectionTitle}>Rate the app</Text>
@@ -318,6 +366,58 @@ export default function StudentFeedbackScreen({ navigation }) {
                 comment={myFeedback.comment}
                 category={`Updated ${formatDate(myFeedback.updatedAt || myFeedback.createdAt)}`}
               />
+            )}
+          </View>
+
+          <View style={styles.communityCard}>
+            <View style={styles.communityHeaderRow}>
+              <Text style={styles.sectionTitle}>Feedback History</Text>
+              <Text style={styles.communityMeta}>{feedbackHistory.length} records</Text>
+            </View>
+
+            <View style={styles.sortChipWrap}>
+              {SORT_OPTIONS.map((option) => {
+                const active = sortOption === option.id;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[styles.sortChip, active ? styles.sortChipActive : null]}
+                    onPress={() => setSortOption(option.id)}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.sortChipText, active ? styles.sortChipTextActive : null]}>{option.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {loadingHistory ? (
+              <View style={styles.historyLoaderWrap}>
+                <ActivityIndicator size="small" color="#e53935" />
+                <Text style={styles.historyLoaderText}>Loading feedback history...</Text>
+              </View>
+            ) : feedbackHistory.length === 0 ? (
+              <View style={styles.communityEmptyWrap}>
+                <Ionicons name="chatbox-ellipses-outline" size={24} color="#94a3b8" />
+                <Text style={styles.communityEmptyText}>No feedback history available.</Text>
+              </View>
+            ) : (
+              <View style={styles.communityList}>
+                {feedbackHistory.map((item, index) => (
+                  <View key={item.id || `${item.studentName}-${index}`} style={styles.communityItem}>
+                    <View style={styles.communityTopRow}>
+                      <Text style={styles.communityName}>{item.studentName || 'Student'}</Text>
+                      <View style={styles.communityRatingPill}>
+                        <Ionicons name="star" size={12} color="#d97706" />
+                        <Text style={styles.communityRatingText}>{Number(item.rating || 0)} / 5</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.communityComment}>{item.comment || 'No comment'}</Text>
+                    <Text style={styles.communityTime}>{formatDateTime(item.updatedAt || item.createdAt)}</Text>
+                  </View>
+                ))}
+              </View>
             )}
           </View>
         </ScrollView>
@@ -553,5 +653,118 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  communityCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    padding: 14,
+  },
+  communityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  communityMeta: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  sortChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginBottom: 10,
+  },
+  sortChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d6dfeb',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  sortChipActive: {
+    borderColor: '#111827',
+    backgroundColor: '#111827',
+  },
+  sortChipText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sortChipTextActive: {
+    color: '#ffffff',
+  },
+  communityEmptyWrap: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fbfcfe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 22,
+    paddingHorizontal: 10,
+  },
+  communityEmptyText: {
+    marginTop: 8,
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  communityList: {
+    gap: 9,
+  },
+  communityItem: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dce6f1',
+    backgroundColor: '#f8fafc',
+    padding: 10,
+  },
+  communityTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    gap: 8,
+  },
+  communityName: {
+    color: '#0f172a',
+    fontSize: 13,
+    fontWeight: '900',
+    flex: 1,
+  },
+  communityRatingPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  communityRatingText: {
+    marginLeft: 4,
+    color: '#7c2d12',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  communityComment: {
+    color: '#334155',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  communityTime: {
+    marginTop: 6,
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

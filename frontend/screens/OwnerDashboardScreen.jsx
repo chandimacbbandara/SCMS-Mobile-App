@@ -55,11 +55,11 @@ export default function OwnerDashboardScreen({ navigation }) {
     setErrorMessage('');
 
     try {
-      const response = await apiRequest('/auth/owner/dashboard', {
+      const result = await apiRequest('/auth/owner/dashboard', {
         method: 'GET',
         token,
       });
-      setDashboard(response.dashboard || null);
+      setDashboard(result.dashboard || null);
     } catch (error) {
       setErrorMessage(error.message || 'Failed to load owner dashboard');
     } finally {
@@ -139,10 +139,21 @@ export default function OwnerDashboardScreen({ navigation }) {
             <Text style={styles.topSub}>Academy of Knowledge Bridge</Text>
           </View>
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
-            <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={styles.topActions}>
+            <TouchableOpacity
+              style={styles.feedbackBtn}
+              onPress={() => navigation.navigate('FeedbackInsights')}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="chatbox-ellipses-outline" size={15} color="#ffffff" />
+              <Text style={styles.feedbackText}>Feedback</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.9}>
+              <Ionicons name="log-out-outline" size={16} color="#ffffff" />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <LinearGradient
@@ -286,6 +297,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
   topTitle: {
     color: '#0f172a',
     fontSize: 21,
@@ -304,6 +320,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  feedbackBtn: {
+    borderRadius: 999,
+    backgroundColor: '#334155',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feedbackText: {
+    marginLeft: 4,
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   logoutText: {
     marginLeft: 4,
