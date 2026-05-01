@@ -12,6 +12,8 @@ router.get('/my-concerns/detail/:concernId', protect, concernController.getConce
 // Admin routes (add proper authorization when needed)
 router.get('/all', protect, concernController.getAllConcerns);
 router.post('/reply/:concernId', protect, concernController.replyToConcern);
+router.put('/reply/:concernId', protect, concernController.updateReply);
+router.delete('/reply/:concernId', protect, concernController.deleteReply);
 router.put('/status/:concernId', protect, concernController.updateConcernStatus);
 router.get('/download/:concernId', protect, concernController.downloadMedicalReport);
 

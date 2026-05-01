@@ -45,6 +45,21 @@ function getCareLevel(rating) {
   return { label: 'Stable', color: '#166534', bg: '#dcfce7' };
 }
 
+function getConcernLevel(status) {
+  switch (status) {
+    case 'pending':
+      return { label: 'Pending', color: '#b45309', bg: '#fef3c7' };
+    case 'reviewing':
+      return { label: 'Reviewing', color: '#1d4ed8', bg: '#dbeafe' };
+    case 'resolved':
+      return { label: 'Resolved', color: '#166534', bg: '#dcfce7' };
+    case 'rejected':
+      return { label: 'Rejected', color: '#b91c1c', bg: '#fee2e2' };
+    default:
+      return { label: 'Unknown', color: '#64748b', bg: '#f1f5f9' };
+  }
+}
+
 export default function ConsulterDashboardScreen({ navigation }) {
   const { token, user, logout } = useAuth();
 
@@ -88,8 +103,8 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
   const cards = useMemo(() => {
     const totalStudents = Number(dashboard?.totalStudents || 0);
-    const totalFeedback = Number(dashboard?.totalFeedback || 0);
-    const criticalFeedback = Number(dashboard?.criticalFeedback || 0);
+    const totalConsulting = Number(dashboard?.totalConsultingConcerns || 0);
+    const pendingConsulting = Number(dashboard?.pendingConsultingConcerns || 0);
     const weeklyFeedback = Number(dashboard?.weeklyFeedback || 0);
 
     return [
@@ -101,15 +116,15 @@ export default function ConsulterDashboardScreen({ navigation }) {
       },
       {
         id: 'c2',
-        label: 'Total Feedback Cases',
-        value: String(totalFeedback),
-        icon: 'chatbox-ellipses-outline',
+        label: 'Total Consultations',
+        value: String(totalConsulting),
+        icon: 'folder-open-outline',
       },
       {
         id: 'c3',
-        label: 'High Priority Cases',
-        value: String(criticalFeedback),
-        icon: 'warning-outline',
+        label: 'Pending Requests',
+        value: String(pendingConsulting),
+        icon: 'time-outline',
       },
       {
         id: 'c4',
@@ -118,9 +133,9 @@ export default function ConsulterDashboardScreen({ navigation }) {
         icon: 'calendar-outline',
       },
     ];
-  }, [dashboard?.criticalFeedback, dashboard?.totalFeedback, dashboard?.totalStudents, dashboard?.weeklyFeedback]);
+  }, [dashboard?.pendingConsultingConcerns, dashboard?.totalConsultingConcerns, dashboard?.totalStudents, dashboard?.weeklyFeedback]);
 
-  const recentFeedback = Array.isArray(dashboard?.recentFeedback) ? dashboard.recentFeedback : [];
+  const recentConsulting = Array.isArray(dashboard?.recentConsulting) ? dashboard.recentConsulting : [];
   const consulterName = user?.username || user?.email || 'Consulter';
 
   return (
@@ -189,26 +204,31 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Recent Student Feedback</Text>
-                <Text style={styles.cardSub}>Prioritize low ratings for early intervention.</Text>
+                <Text style={styles.cardTitle}>Recent Consulting Requests</Text>
+                <Text style={styles.cardSub}>Respond to student consultation queries.</Text>
               </View>
 
-              {recentFeedback.length === 0 ? (
+              {recentConsulting.length === 0 ? (
                 <View style={styles.emptyWrap}>
-                  <Ionicons name="document-text-outline" size={24} color="#94a3b8" />
-                  <Text style={styles.emptyText}>No feedback records found yet.</Text>
+                  <Ionicons name="folder-open-outline" size={24} color="#94a3b8" />
+                  <Text style={styles.emptyText}>No consulting requests found.</Text>
                 </View>
               ) : (
                 <View style={styles.listWrap}>
-                  {recentFeedback.map((item, index) => {
-                    const level = getCareLevel(item.rating);
+                  {recentConsulting.map((item, index) => {
+                    const level = getConcernLevel(item.status);
 
                     return (
-                      <View key={item.id || `${item.studentEmail}-${index}`} style={styles.listItem}>
+                      <TouchableOpacity 
+                        key={item.id || `${item.studentIdNum}-${index}`} 
+                        style={styles.listItem}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('ConcernDetail', { concern: item })}
+                      >
                         <View style={styles.listTopRow}>
                           <View style={styles.identityWrap}>
                             <Text style={styles.studentName}>{item.studentName || 'Student'}</Text>
-                            <Text style={styles.studentSub}>{item.studentId || 'No ID'} • {formatDate(item.createdAt)}</Text>
+                            <Text style={styles.studentSub}>{item.studentIdNum || 'No ID'} • {formatDate(item.createdAt)}</Text>
                           </View>
 
                           <View style={[styles.priorityPill, { backgroundColor: level.bg }]}> 
@@ -217,12 +237,12 @@ export default function ConsulterDashboardScreen({ navigation }) {
                         </View>
 
                         <View style={styles.ratingRow}>
-                          <Ionicons name="star" size={13} color="#d97706" />
-                          <Text style={styles.ratingText}>Rating: {Number(item.rating || 0)} / 5</Text>
+                          <Ionicons name="bookmark-outline" size={13} color="#0f766e" />
+                          <Text style={[styles.ratingText, { color: '#0f766e' }]}>{item.genre}</Text>
                         </View>
 
-                        <Text style={styles.commentText} numberOfLines={3}>{item.comment || 'No comment'}</Text>
-                      </View>
+                        <Text style={styles.commentText} numberOfLines={2}>{item.description || 'No description'}</Text>
+                      </TouchableOpacity>
                     );
                   })}
                 </View>

@@ -5,6 +5,7 @@ const Student = require('../models/Student');
 const Admin = require('../models/Admin');
 const Consulter = require('../models/Consulter');
 const Feedback = require('../models/Feedback');
+const Concern = require('../models/Concern');
 const { isMailConfigured, sendMail } = require('../utils/mailer');
 
 const OWNER_EMAIL = 'admin@akbinstitute.edu.lk';
@@ -870,6 +871,9 @@ async function getConsulterDashboard(req, res) {
       criticalFeedback,
       weeklyFeedback,
       recentFeedbackDocs,
+      totalConsultingConcerns,
+      pendingConsultingConcerns,
+      recentConsultingDocs,
     ] = await Promise.all([
       Student.countDocuments({}),
       getFeedbackSummaryStats(),
@@ -879,6 +883,12 @@ async function getConsulterDashboard(req, res) {
         .sort({ createdAt: -1 })
         .limit(8)
         .select('studentName studentEmail studentId rating comment createdAt'),
+      Concern.countDocuments({ concernType: 'Consulting Support' }),
+      Concern.countDocuments({ concernType: 'Consulting Support', status: 'pending' }),
+      Concern.find({ concernType: 'Consulting Support' })
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .populate('studentId', 'firstName lastName email studentId'),
     ]);
 
     const recentFeedback = recentFeedbackDocs.map((feedback) => ({
@@ -891,6 +901,14 @@ async function getConsulterDashboard(req, res) {
       createdAt: feedback.createdAt,
     }));
 
+    const recentConsulting = recentConsultingDocs.map((concern) => ({
+      ...concern.toObject(),
+      id: concern._id,
+      studentName: concern.studentId ? `${concern.studentId.firstName} ${concern.studentId.lastName}` : 'Unknown Student',
+      studentEmail: concern.studentId ? concern.studentId.email : 'No email',
+      studentIdNum: concern.studentId ? concern.studentId.studentId : 'No ID',
+    }));
+
     return res.json({
       status: 'ok',
       dashboard: {
@@ -901,6 +919,9 @@ async function getConsulterDashboard(req, res) {
         averageRating: feedbackSummary.averageRating,
         feedbackDistribution: feedbackSummary.feedbackDistribution,
         recentFeedback,
+        totalConsultingConcerns,
+        pendingConsultingConcerns,
+        recentConsulting,
       },
     });
   } catch (error) {

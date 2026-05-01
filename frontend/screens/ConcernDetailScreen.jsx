@@ -1,5 +1,5 @@
 // screens/ConcernDetailScreen.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Linking,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAuth } from '../context/AuthContext';
+import { apiRequest, getApiBaseUrl } from '../lib/api';
 
 const ConcernDetailScreen = ({ route, navigation }) => {
-  const { concern } = route.params;
+  const { concern: initialConcern } = route.params;
+  const { user, token } = useAuth();
+  
+  const [concern, setConcern] = useState(initialConcern);
+  const [replyText, setReplyText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editReplyText, setEditReplyText] = useState('');
+
+  const isStaff = user?.role === 'consulter' || user?.role === 'admin';
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -29,9 +41,128 @@ const ConcernDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const downloadMedicalReport = () => {
-    // Implement download functionality
-    Alert.alert('Download', 'Medical report download feature');
+  const getStatusText = (status) => {
+    if (status === 'reviewing') return 'In Progress';
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const downloadMedicalReport = async () => {
+    if (!concern.medicalReport || !concern.medicalReport.path) {
+      Alert.alert('Error', 'Medical report file not found.');
+      return;
+    }
+    
+    // Normalize path to prevent double slashes
+    const rawPath = concern.medicalReport.path.startsWith('/') 
+      ? concern.medicalReport.path 
+      : `/${concern.medicalReport.path}`;
+      
+    const baseUrl = getApiBaseUrl().replace(/\/api$/, '');
+    const fileUrl = `${baseUrl}${rawPath}`;
+    
+    try {
+      await Linking.openURL(fileUrl);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open the medical report. Ensure you have a browser or viewer installed.');
+    }
+  };
+
+  const markAsReviewing = async () => {
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/status/${concernId}`, {
+        method: 'PUT',
+        token,
+        body: { status: 'reviewing' },
+      });
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Concern marked as In Progress.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to update status.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitReply = async () => {
+    if (!replyText.trim()) {
+      Alert.alert('Error', 'Please enter a reply message.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/reply/${concernId}`, {
+        method: 'POST',
+        token,
+        body: { reply: replyText },
+      });
+      
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Reply submitted successfully.');
+      setReplyText('');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to submit reply.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const updateReply = async () => {
+    if (!editReplyText.trim()) {
+      Alert.alert('Error', 'Please enter a reply message.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/reply/${concernId}`, {
+        method: 'PUT',
+        token,
+        body: { reply: editReplyText },
+      });
+      
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Reply updated successfully.');
+      setIsEditing(false);
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to update reply.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete Reply',
+      'Are you sure you want to delete this reply?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: deleteReply }
+      ]
+    );
+  };
+
+  const deleteReply = async () => {
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/reply/${concernId}`, {
+        method: 'DELETE',
+        token,
+      });
+      
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Reply deleted successfully.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to delete reply.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -40,13 +171,25 @@ const ConcernDetailScreen = ({ route, navigation }) => {
         <Text style={styles.genre}>{concern.genre}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(concern.status) }]}>
           <Text style={styles.statusText}>
-            {concern.status.charAt(0).toUpperCase() + concern.status.slice(1)}
+            {getStatusText(concern.status)}
           </Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Description</Text>
+        <View style={styles.descriptionHeaderRow}>
+          <Text style={styles.sectionTitleNoMargin}>Description</Text>
+          {isStaff && concern.status === 'pending' && (
+            <TouchableOpacity 
+              style={styles.markProgressBtn} 
+              onPress={markAsReviewing}
+              disabled={submitting}
+            >
+              <Ionicons name="checkmark-circle-outline" size={16} color="#2196f3" />
+              <Text style={styles.markProgressText}>Mark as In Progress</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.description}>{concern.description}</Text>
       </View>
 
@@ -60,16 +203,93 @@ const ConcernDetailScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {concern.adminReply && (
+      {concern.adminReply && !isEditing && (
         <View style={[styles.section, styles.replySection]}>
-          <Text style={styles.sectionTitle}>Admin Response</Text>
+          <View style={styles.replyHeaderRow}>
+            <Text style={styles.sectionTitleNoMargin}>Admin Response</Text>
+            {isStaff && (
+              <View style={styles.replyActions}>
+                <TouchableOpacity onPress={() => { setIsEditing(true); setEditReplyText(concern.adminReply); }} style={styles.iconBtn}>
+                  <Ionicons name="pencil" size={18} color="#0f766e" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmDelete} style={styles.iconBtn}>
+                  <Ionicons name="trash" size={18} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
           <View style={styles.replyContainer}>
             <Ionicons name="chatbubble" size={20} color="#4caf50" />
             <Text style={styles.replyText}>{concern.adminReply}</Text>
-            <Text style={styles.replyDate}>
-              {new Date(concern.repliedAt).toLocaleString()}
-            </Text>
+            {concern.repliedAt && (
+              <Text style={styles.replyDate}>
+                {new Date(concern.repliedAt).toLocaleString()}
+              </Text>
+            )}
           </View>
+        </View>
+      )}
+
+      {concern.adminReply && isEditing && (
+        <View style={[styles.section, styles.staffReplySection]}>
+          <View style={styles.replyHeaderRow}>
+            <Text style={styles.sectionTitleNoMargin}>Edit Reply</Text>
+            <TouchableOpacity onPress={() => setIsEditing(false)}>
+              <Text style={{color: '#64748b'}}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={styles.replyInput}
+            placeholder="Type your response..."
+            multiline
+            numberOfLines={4}
+            value={editReplyText}
+            onChangeText={setEditReplyText}
+            editable={!submitting}
+          />
+          <TouchableOpacity 
+            style={styles.submitReplyBtn} 
+            onPress={updateReply}
+            disabled={submitting || !editReplyText.trim()}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="save" size={16} color="#fff" />
+                <Text style={styles.submitReplyBtnText}>Update Reply</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {isStaff && concern.status !== 'resolved' && !concern.adminReply && (
+        <View style={[styles.section, styles.staffReplySection]}>
+          <Text style={styles.sectionTitle}>Write a Reply</Text>
+          <TextInput
+            style={styles.replyInput}
+            placeholder="Type your response to the student..."
+            multiline
+            numberOfLines={4}
+            value={replyText}
+            onChangeText={setReplyText}
+            editable={!submitting}
+          />
+          <TouchableOpacity 
+            style={styles.submitReplyBtn} 
+            onPress={submitReply}
+            disabled={submitting || !replyText.trim()}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="send" size={16} color="#fff" />
+                <Text style={styles.submitReplyBtnText}>Submit Reply</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
@@ -123,6 +343,31 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
+  sectionTitleNoMargin: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  descriptionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  markProgressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  markProgressText: {
+    color: '#2196f3',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   description: {
     fontSize: 14,
     color: '#666',
@@ -144,6 +389,19 @@ const styles = StyleSheet.create({
   },
   replySection: {
     backgroundColor: '#e8f5e9',
+  },
+  replyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  replyActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iconBtn: {
+    padding: 4,
   },
   replyContainer: {
     backgroundColor: '#fff',
@@ -170,6 +428,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     textAlign: 'center',
+  },
+  staffReplySection: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  replyInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#334155',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  submitReplyBtn: {
+    backgroundColor: '#0f766e',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  submitReplyBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 

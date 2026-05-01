@@ -263,6 +263,60 @@ exports.replyToConcern = async (req, res) => {
   }
 };
 
+// Update reply (admin/consulter)
+exports.updateReply = async (req, res) => {
+  try {
+    const { concernId } = req.params;
+    const { reply } = req.body;
+
+    if (!reply || !reply.trim()) {
+      return res.status(400).json({ success: false, message: 'Reply message cannot be empty' });
+    }
+
+    const concern = await Concern.findByIdAndUpdate(
+      concernId,
+      {
+        adminReply: reply,
+        repliedAt: new Date(),
+        status: 'resolved'
+      },
+      { new: true }
+    );
+
+    if (!concern) {
+      return res.status(404).json({ success: false, message: 'Concern not found' });
+    }
+
+    res.json({ success: true, message: 'Reply updated successfully', data: concern });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
+// Delete reply (admin/consulter)
+exports.deleteReply = async (req, res) => {
+  try {
+    const { concernId } = req.params;
+
+    const concern = await Concern.findByIdAndUpdate(
+      concernId,
+      {
+        $unset: { adminReply: "", repliedAt: "" },
+        status: 'pending'
+      },
+      { new: true }
+    );
+
+    if (!concern) {
+      return res.status(404).json({ success: false, message: 'Concern not found' });
+    }
+
+    res.json({ success: true, message: 'Reply deleted successfully', data: concern });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
 // Update concern status (admin)
 exports.updateConcernStatus = async (req, res) => {
   try {
