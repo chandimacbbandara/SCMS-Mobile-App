@@ -10,6 +10,12 @@ const concernSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  concernType: {
+    type: String,
+    enum: ['Consulting Support', 'Normal Concern'],
+    default: 'Normal Concern',
+    required: true
+  },
   description: {
     type: String,
     required: true

@@ -48,9 +48,9 @@ exports.submitConcern = async (req, res) => {
       console.log('After upload - Body:', req.body);
       console.log('After upload - File:', req.file);
 
-      const { genre, description, studentId, age, gpa, year, gender } = req.body;
+      const { concernType, genre, description, studentId, age, gpa, year, gender } = req.body;
 
-      console.log('Parsed data:', { genre, description, studentId, age, gpa, year, gender });
+      console.log('Parsed data:', { concernType, genre, description, studentId, age, gpa, year, gender });
 
       // Validate required fields
       if (!genre || !description || !studentId) {
@@ -94,6 +94,7 @@ exports.submitConcern = async (req, res) => {
       const concernData = {
         studentId,
         genre,
+        concernType: concernType || 'Normal Concern',
         description,
         age: age ? parseInt(age) : null,
         gpa: gpa ? parseFloat(gpa) : null,

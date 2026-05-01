@@ -49,26 +49,26 @@ function StudentConcernStackNavigator() {
         headerBackTitle: 'Back',
       }}
     >
-      <StudentConcernStack.Screen 
-        name="SubmitConcern" 
+      <StudentConcernStack.Screen
+        name="SubmitConcern"
         component={StudentConcernScreen}
-        options={{ 
+        options={{
           title: 'Submit Concern',
           headerShown: true,
         }}
       />
-      <StudentConcernStack.Screen 
-        name="ConcernHistory" 
+      <StudentConcernStack.Screen
+        name="ConcernHistory"
         component={ConcernHistoryScreen}
-        options={{ 
+        options={{
           title: 'My Concerns',
           headerShown: true,
         }}
       />
-      <StudentConcernStack.Screen 
-        name="ConcernDetail" 
+      <StudentConcernStack.Screen
+        name="ConcernDetail"
         component={ConcernDetailScreen}
-        options={{ 
+        options={{
           title: 'Concern Details',
           headerShown: true,
         }}
@@ -260,9 +260,9 @@ function AuthTabsNavigator() {
   const normalizedRole = getNormalizedRole(user?.role);
 
   return (
-    <Tab.Navigator 
-      key={`auth-tabs-${normalizedRole}`} 
-      initialRouteName="Dashboard" 
+    <Tab.Navigator
+      key={`auth-tabs-${normalizedRole}`}
+      initialRouteName="Dashboard"
       screenOptions={getTabScreenOptions}
     >
       {roleTabs.map((tab) => (

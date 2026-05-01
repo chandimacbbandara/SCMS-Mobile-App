@@ -24,10 +24,10 @@ export function getApiBaseUrl() {
 
   const host = inferHostFromExpo();
   if (host) {
-    return `http://${host}:5456/api`; // ✅ PERMANENT PORT 5456
+    return `http://${host}:5000/api`; // ✅ PERMANENT PORT 5000
   }
 
-  return 'http://localhost:5456/api'; // ✅ PERMANENT PORT 5456
+  return 'http://localhost:5000/api'; // ✅ PERMANENT PORT 5000
 }
 
 export async function apiRequest(path, options = {}) {
@@ -106,6 +106,7 @@ export async function submitConcernWithReport(concernData, medicalReportFile) {
   const formData = new FormData();
   
   // Add all text fields
+  formData.append('concernType', concernData.concernType);
   formData.append('genre', concernData.genre);
   formData.append('description', concernData.description);
   formData.append('studentId', concernData.studentId);

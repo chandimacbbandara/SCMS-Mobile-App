@@ -10,7 +10,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../lib/api';
+import { getStudentConcerns } from '../lib/api';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 const ConcernHistoryScreen = ({ navigation }) => {
   const [concerns, setConcerns] = useState([]);
@@ -25,10 +26,10 @@ const ConcernHistoryScreen = ({ navigation }) => {
     try {
       const userData = await AsyncStorage.getItem('user');
       const user = userData ? JSON.parse(userData) : null;
-      
+
       if (user) {
-        const response = await api.get(`/concerns/my-concerns/${user.id || user._id}`);
-        setConcerns(response.data.data);
+        const response = await getStudentConcerns(user.id || user._id);
+        setConcerns(response.data || []);
       }
     } catch (error) {
       console.error('Error loading concerns:', error);
@@ -68,16 +69,19 @@ const ConcernHistoryScreen = ({ navigation }) => {
       onPress={() => navigation.navigate('ConcernDetail', { concern: item })}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.genre}>{item.genre}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.concernType}>{item.concernType || 'Normal Concern'}</Text>
+          <Text style={styles.genre}>{item.genre}</Text>
+        </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
         </View>
       </View>
-      
+
       <Text style={styles.description} numberOfLines={2}>
         {item.description}
       </Text>
-      
+
       <View style={styles.cardFooter}>
         <Text style={styles.date}>
           {new Date(item.createdAt).toLocaleDateString()}
@@ -122,7 +126,7 @@ const ConcernHistoryScreen = ({ navigation }) => {
           </View>
         }
       />
-      
+
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
@@ -162,11 +166,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  concernType: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#e53935',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
   genre: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    flex: 1,
   },
   statusBadge: {
     paddingHorizontal: 8,
