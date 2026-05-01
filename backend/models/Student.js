@@ -42,24 +42,20 @@ const studentSchema = new mongoose.Schema(
       type: Number,
       min: 16,
       max: 100,
-      default: null,
     },
     gpa: {
       type: Number,
       min: 0,
       max: 4.0,
-      default: null,
     },
     year: {
       type: Number,
       min: 1,
       max: 5,
-      default: null,
     },
     gender: {
       type: String,
       enum: ['M', 'F', 'Other', 'Prefer not to say'],
-      default: null,
     },
     // Optional: Track concerns submitted by student
     concerns: [{
