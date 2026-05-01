@@ -11,11 +11,13 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import StudentDashboardScreen from '../screens/StudentDashboardScreen';
 import StudentFeedbackScreen from '../screens/StudentFeedbackScreen';
 import StudentConcernScreen from "../screens/StudentConcernScreen";
-import ConcernHistoryScreen from "../screens/ConcernHistoryScreen"; // We'll create this
-import ConcernDetailScreen from "../screens/ConcernDetailScreen"; // We'll create this
+import ConcernHistoryScreen from "../screens/ConcernHistoryScreen";
+import ConcernDetailScreen from "../screens/ConcernDetailScreen";
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import AdminConcernsScreen from '../screens/AdminConcernsScreen';
+import AdminConcernDetailScreen from '../screens/AdminConcernDetailScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
 import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
 
@@ -24,6 +26,7 @@ import { useAuth } from '../context/AuthContext';
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const StudentConcernStack = createNativeStackNavigator(); // Stack for concern-related screens
+const AdminConcernStack = createNativeStackNavigator(); // Stack for admin concern-related screens
 
 function SplashLoader() {
   return (
@@ -74,6 +77,41 @@ function StudentConcernStackNavigator() {
         }}
       />
     </StudentConcernStack.Navigator>
+  );
+}
+
+// Stack Navigator for Admin Concern Flow
+function AdminConcernStackNavigator() {
+  return (
+    <AdminConcernStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#05070a',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        headerBackTitle: 'Back',
+      }}
+    >
+      <AdminConcernStack.Screen
+        name="AdminConcerns"
+        component={AdminConcernsScreen}
+        options={{
+          title: 'Student Concerns',
+          headerShown: true,
+        }}
+      />
+      <AdminConcernStack.Screen
+        name="AdminConcernDetail"
+        component={AdminConcernDetailScreen}
+        options={{
+          title: 'Concern Details',
+          headerShown: true,
+        }}
+      />
+    </AdminConcernStack.Navigator>
   );
 }
 
@@ -183,6 +221,17 @@ function getRoleTabs(role) {
   }
 
   if (normalizedRole === 'owner' || normalizedRole === 'admin' || normalizedRole === 'consulter') {
+    if (normalizedRole === 'admin') {
+      tabs.push({
+        name: 'AdminConcernStack',
+        component: AdminConcernStackNavigator,
+        label: 'Concerns',
+        title: 'Concerns',
+        activeIcon: 'alert-circle',
+        inactiveIcon: 'alert-circle-outline',
+      });
+    }
+
     tabs.push({
       name: 'FeedbackInsights',
       component: FeedbackInsightsScreen,

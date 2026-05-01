@@ -4,6 +4,27 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const ALLOWED_CONCERN_TYPES = ['Normal Concern', 'Consulting Support'];
+const ALLOWED_STATUSES = ['pending', 'reviewing', 'resolved', 'rejected'];
+
+function isValidText(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function removeFileIfExists(filePath) {
+  if (!filePath) {
+    return;
+  }
+
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (error) {
+    console.error('Failed to remove file:', filePath, error.message);
+  }
+}
+
 // Configure multer for medical report uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -52,8 +73,19 @@ exports.submitConcern = async (req, res) => {
 
       console.log('Parsed data:', { concernType, genre, description, studentId, age, gpa, year, gender });
 
+      const normalizedConcernType = (concernType || 'Normal Concern').trim();
+      const normalizedGenre = (genre || '').trim();
+      const trimmedDescription = (description || '').trim();
+
+      if (!ALLOWED_CONCERN_TYPES.includes(normalizedConcernType)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid concern type',
+        });
+      }
+
       // Validate required fields
-      if (!genre || !description || !studentId) {
+      if (!normalizedGenre || !trimmedDescription || !studentId) {
         console.log('Missing required fields');
         return res.status(400).json({ 
           success: false, 
@@ -61,11 +93,32 @@ exports.submitConcern = async (req, res) => {
         });
       }
 
-      if (description.length < 10) {
-        console.log('Description too short:', description.length);
+      if (trimmedDescription.length < 10) {
+        console.log('Description too short:', trimmedDescription.length);
         return res.status(400).json({ 
           success: false, 
           message: 'Description must be at least 10 characters' 
+        });
+      }
+
+      if (normalizedConcernType === 'Consulting Support' && normalizedGenre !== 'Medical Concern') {
+        return res.status(400).json({
+          success: false,
+          message: 'Consulting Support concerns must use Medical Concern as the category',
+        });
+      }
+
+      if (normalizedConcernType === 'Normal Concern' && normalizedGenre === 'Medical Concern') {
+        return res.status(400).json({
+          success: false,
+          message: 'Medical Concern must be submitted as Consulting Support',
+        });
+      }
+
+      if (normalizedConcernType === 'Consulting Support' && !req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'Medical report is required for Consulting Support concerns',
         });
       }
 
@@ -93,9 +146,9 @@ exports.submitConcern = async (req, res) => {
 
       const concernData = {
         studentId,
-        genre,
-        concernType: concernType || 'Normal Concern',
-        description,
+        genre: normalizedGenre,
+        concernType: normalizedConcernType,
+        description: trimmedDescription,
         age: age ? parseInt(age) : null,
         gpa: gpa ? parseFloat(gpa) : null,
         year: year ? parseInt(year) : null,
@@ -189,8 +242,24 @@ exports.getConcernById = async (req, res) => {
 // Get all concerns (admin)
 exports.getAllConcerns = async (req, res) => {
   try {
-    const { status } = req.query;
-    const filter = status ? { status } : {};
+    const { status, concernType, genre } = req.query;
+    const filter = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (concernType) {
+      filter.concernType = concernType;
+    }
+
+    if (genre) {
+      filter.genre = genre;
+    }
+
+    if (!concernType && req.user && req.user.role === 'admin') {
+      filter.concernType = 'Normal Concern';
+    }
     
     console.log('Fetching all concerns with filter:', filter);
     
@@ -213,6 +282,42 @@ exports.getAllConcerns = async (req, res) => {
   }
 };
 
+// Delete concern (admin)
+exports.deleteConcern = async (req, res) => {
+  try {
+    const { concernId } = req.params;
+
+    if (!concernId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Concern ID is required',
+      });
+    }
+
+    const concern = await Concern.findById(concernId);
+
+    if (!concern) {
+      return res.status(404).json({
+        success: false,
+        message: 'Concern not found',
+      });
+    }
+
+    removeFileIfExists(concern.medicalReport?.path);
+    await Concern.findByIdAndDelete(concernId);
+
+    res.json({
+      success: true,
+      message: 'Concern deleted successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message,
+    });
+  }
+};
+
 // Reply to concern (admin)
 exports.replyToConcern = async (req, res) => {
   try {
@@ -222,17 +327,26 @@ exports.replyToConcern = async (req, res) => {
     console.log('Replying to concern:', concernId);
     console.log('Reply:', reply);
 
-    if (!reply) {
+    const trimmedReply = reply ? reply.trim() : '';
+
+    if (!trimmedReply) {
       return res.status(400).json({ 
         success: false, 
         message: 'Reply message is required' 
       });
     }
 
+    if (trimmedReply.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reply message must be at least 10 characters',
+      });
+    }
+
     const concern = await Concern.findByIdAndUpdate(
       concernId,
       {
-        adminReply: reply,
+        adminReply: trimmedReply,
         status: 'resolved',
         repliedAt: new Date()
       },
@@ -269,14 +383,20 @@ exports.updateReply = async (req, res) => {
     const { concernId } = req.params;
     const { reply } = req.body;
 
-    if (!reply || !reply.trim()) {
+    const trimmedReply = reply ? reply.trim() : '';
+
+    if (!trimmedReply) {
       return res.status(400).json({ success: false, message: 'Reply message cannot be empty' });
+    }
+
+    if (trimmedReply.length < 10) {
+      return res.status(400).json({ success: false, message: 'Reply message must be at least 10 characters' });
     }
 
     const concern = await Concern.findByIdAndUpdate(
       concernId,
       {
-        adminReply: reply,
+        adminReply: trimmedReply,
         repliedAt: new Date(),
         status: 'resolved'
       },
@@ -323,8 +443,7 @@ exports.updateConcernStatus = async (req, res) => {
     const { concernId } = req.params;
     const { status } = req.body;
     
-    const validStatuses = ['pending', 'reviewing', 'resolved', 'rejected'];
-    if (!validStatuses.includes(status)) {
+    if (!ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid status' 
