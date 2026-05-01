@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiRequest, getApiBaseUrl } from '../lib/api';
+import { apiRequest, getApiBaseUrl } from '../lib/api'; // Remove duplicate import
 
 const AuthContext = createContext(null);
 
@@ -74,13 +74,25 @@ export function AuthProvider({ children }) {
     });
   }
 
+  // ✅ REGISTER FUNCTION WITH ALL FIELDS (Age, GPA, Year, Gender)
   async function register(payload, photoFile) {
     const formData = new FormData();
 
+    // Add all text fields from payload
     Object.entries(payload).forEach(([key, value]) => {
-      formData.append(key, value);
+      // Don't append null or undefined values
+      if (value !== null && value !== undefined && value !== '') {
+        formData.append(key, value.toString());
+      }
     });
 
+    // Ensure age, gpa, year, gender are explicitly included
+    if (payload.age) formData.append('age', payload.age.toString());
+    if (payload.gpa) formData.append('gpa', payload.gpa.toString());
+    if (payload.year) formData.append('year', payload.year.toString());
+    if (payload.gender) formData.append('gender', payload.gender);
+
+    // Add student ID photo if provided
     if (photoFile?.uri) {
       formData.append('studentIdPhoto', {
         uri: photoFile.uri,
@@ -135,6 +147,28 @@ export function AuthProvider({ children }) {
     return response.user;
   }
 
+  // ✅ UPDATE STUDENT PROFILE FUNCTION
+  async function updateStudentProfile(profileData) {
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    const response = await apiRequest('/students/profile', {
+      method: 'PUT',
+      body: profileData,
+      token,
+    });
+
+    // Update the stored user data
+    if (response.data) {
+      const updatedUser = { ...user, ...response.data };
+      setUser(updatedUser);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    }
+
+    return response;
+  }
+
   const value = useMemo(
     () => ({
       token,
@@ -151,6 +185,7 @@ export function AuthProvider({ children }) {
       verifyForgotCode,
       resetForgotPassword,
       refreshMe,
+      updateStudentProfile,
     }),
     [token, user, initializing]
   );

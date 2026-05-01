@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 
@@ -52,6 +53,12 @@ export default function RegisterScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
+  
+  // ✅ ADD NEW STATE VARIABLES
+  const [age, setAge] = useState('');
+  const [gpa, setGpa] = useState('');
+  const [year, setYear] = useState('');
+  const [gender, setGender] = useState('');
 
   const [emailVerified, setEmailVerified] = useState(false);
   const [sendCodeMessage, setSendCodeMessage] = useState('');
@@ -138,6 +145,46 @@ export default function RegisterScreen({ navigation }) {
     }
   }
 
+  // ✅ ADD VALIDATION FUNCTION
+  function validateAdditionalFields() {
+    if (!age) {
+      setGeneralError('Please enter your age');
+      return false;
+    }
+    const ageNum = parseInt(age);
+    if (isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
+      setGeneralError('Age must be between 16 and 100');
+      return false;
+    }
+
+    if (!gpa) {
+      setGeneralError('Please enter your GPA');
+      return false;
+    }
+    const gpaNum = parseFloat(gpa);
+    if (isNaN(gpaNum) || gpaNum < 0 || gpaNum > 4.0) {
+      setGeneralError('GPA must be between 0 and 4.0');
+      return false;
+    }
+
+    if (!year) {
+      setGeneralError('Please enter your year of study');
+      return false;
+    }
+    const yearNum = parseInt(year);
+    if (isNaN(yearNum) || yearNum < 1 || yearNum > 5) {
+      setGeneralError('Year must be between 1 and 5');
+      return false;
+    }
+
+    if (!gender) {
+      setGeneralError('Please select your gender');
+      return false;
+    }
+
+    return true;
+  }
+
   async function handleRegister() {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !studentId.trim()) {
       setGeneralError('Please fill all required fields');
@@ -159,10 +206,16 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
+    // ✅ VALIDATE ADDITIONAL FIELDS
+    if (!validateAdditionalFields()) {
+      return;
+    }
+
     setRegisterLoading(true);
     setGeneralError('');
 
     try {
+      // ✅ INCLUDE ADDITIONAL FIELDS IN REGISTRATION
       await register(
         {
           firstName: firstName.trim(),
@@ -171,6 +224,10 @@ export default function RegisterScreen({ navigation }) {
           studentId: studentId.trim(),
           password,
           confirmPassword,
+          age: parseInt(age),
+          gpa: parseFloat(gpa),
+          year: parseInt(year),
+          gender,
         },
         photoFile
       );
@@ -219,17 +276,17 @@ export default function RegisterScreen({ navigation }) {
 
             <View style={styles.rowTwo}>
               <View style={[styles.inputGroup, styles.flexOne]}>
-                <Text style={styles.label}>First name</Text>
+                <Text style={styles.label}>First name *</Text>
                 <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" />
               </View>
               <View style={[styles.inputGroup, styles.flexOne]}>
-                <Text style={styles.label}>Last name</Text>
+                <Text style={styles.label}>Last name *</Text>
                 <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>Email *</Text>
               <View style={styles.inlineRow}>
                 <TextInput
                   style={[styles.input, styles.flexOne]}
@@ -250,7 +307,7 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Verification code</Text>
+              <Text style={styles.label}>Verification code *</Text>
               <View style={styles.inlineRow}>
                 <TextInput
                   style={[styles.input, styles.flexOne]}
@@ -272,8 +329,64 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Student ID</Text>
+              <Text style={styles.label}>Student ID *</Text>
               <TextInput style={styles.input} value={studentId} onChangeText={setStudentId} placeholder="e.g. STU2024001" />
+            </View>
+
+            {/* ✅ ADD NEW SECTION FOR AGE, GPA, YEAR, GENDER */}
+            <View style={styles.divider} />
+            <Text style={styles.sectionSubtitle}>Academic Information</Text>
+            
+            <View style={styles.rowTwo}>
+              <View style={[styles.inputGroup, styles.flexOne]}>
+                <Text style={styles.label}>Age *</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={age} 
+                  onChangeText={setAge} 
+                  placeholder="Age" 
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={[styles.inputGroup, styles.flexOne]}>
+                <Text style={styles.label}>GPA *</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={gpa} 
+                  onChangeText={setGpa} 
+                  placeholder="0.0 - 4.0" 
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
+            <View style={styles.rowTwo}>
+              <View style={[styles.inputGroup, styles.flexOne]}>
+                <Text style={styles.label}>Year of Study *</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={year} 
+                  onChangeText={setYear} 
+                  placeholder="1-5" 
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={[styles.inputGroup, styles.flexOne]}>
+                <Text style={styles.label}>Gender *</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={gender}
+                    onValueChange={(itemValue) => setGender(itemValue)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Gender" value="" />
+                    <Picker.Item label="Male" value="M" />
+                    <Picker.Item label="Female" value="F" />
+                    <Picker.Item label="Other" value="Other" />
+                    <Picker.Item label="Prefer not to say" value="Prefer not to say" />
+                  </Picker>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -325,7 +438,7 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Student ID Photo</Text>
+            <Text style={styles.cardTitle}>Student ID Photo (Optional)</Text>
             <TouchableOpacity style={styles.uploadBtn} onPress={pickStudentPhoto} activeOpacity={0.9}>
               <Ionicons name="cloud-upload-outline" size={18} color="#e53935" />
               <Text style={styles.uploadBtnText}>{photoFile ? 'Replace ID photo' : 'Upload ID photo'}</Text>
@@ -453,6 +566,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 10,
   },
+  sectionSubtitle: {
+    color: '#e53935',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 10,
+    marginTop: 5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e4e9f2',
+    marginVertical: 10,
+  },
   rowTwo: {
     flexDirection: 'row',
     gap: 8,
@@ -567,19 +692,33 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   previewBox: {
-    marginTop: 10,
+    marginTop: 12,
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 8,
   },
   previewImage: {
     width: 160,
     height: 120,
-    borderRadius: 11,
+    borderRadius: 8,
+    resizeMode: 'cover',
   },
   previewName: {
     marginTop: 6,
     color: '#64748b',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d8e1ec',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 48,
   },
   submitBtn: {
     marginTop: 4,

@@ -43,81 +43,120 @@ async function protect(req, res, next) {
     const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
     if (!token) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized: token missing' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: token missing' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+    // Use the same JWT secret consistently
+    const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secure_jwt_secret_key_2024';
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      console.error('JWT Verification failed:', jwtError.message);
+      return res.status(401).json({ success: false, message: 'Unauthorized: invalid or expired token' });
+    }
 
-    if (decoded && (decoded.role === 'owner' || decoded.type === 'owner')) {
-      const decodedEmail = String(decoded.email || '').trim().toLowerCase();
-      if (decodedEmail && decodedEmail !== OWNER_EMAIL.toLowerCase()) {
-        return res.status(401).json({ status: 'error', message: 'Unauthorized: invalid owner token' });
-      }
-
+    // Handle owner role
+    if (decoded.role === 'owner') {
       req.user = getOwnerUser();
       return next();
     }
 
-    if (decoded && (decoded.role === 'admin' || decoded.type === 'admin')) {
+    // Handle admin role
+    if (decoded.role === 'admin') {
       const admin = await Admin.findById(decoded.id).select('-password');
       if (!admin) {
-        return res.status(401).json({ status: 'error', message: 'Unauthorized: admin not found' });
+        return res.status(401).json({ success: false, message: 'Unauthorized: admin not found' });
       }
-
       req.user = sanitizeAdminUser(admin);
       return next();
     }
 
-    if (decoded && (decoded.role === 'consulter' || decoded.type === 'consulter')) {
+    // Handle consulter role
+    if (decoded.role === 'consulter') {
       const consulter = await Consulter.findById(decoded.id).select('-password');
       if (!consulter) {
-        return res.status(401).json({ status: 'error', message: 'Unauthorized: consulter not found' });
+        return res.status(401).json({ success: false, message: 'Unauthorized: consulter not found' });
       }
-
       req.user = sanitizeConsulterUser(consulter);
       return next();
     }
 
+    // Handle student role (default)
     const student = await Student.findById(decoded.id).select('-password');
-
     if (!student) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized: user not found' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: user not found' });
     }
 
     req.user = student;
     return next();
   } catch (error) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized: invalid token' });
+    console.error('Auth middleware error:', error);
+    return res.status(401).json({ success: false, message: 'Unauthorized: authentication failed' });
   }
+}
+
+function authorize(...roles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: No user found' });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: `Forbidden: ${req.user.role} role not authorized` });
+    }
+    next();
+  };
 }
 
 function requireOwner(req, res, next) {
   if (!req.user || req.user.role !== 'owner') {
-    return res.status(403).json({ status: 'error', message: 'Forbidden: owner access required' });
+    return res.status(403).json({ status: 'error', message: 'Forbidden: Owner access required' });
   }
-
   return next();
 }
 
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Forbidden: admin access required' });
+    return res.status(403).json({ status: 'error', message: 'Forbidden: Admin access required' });
   }
-
   return next();
 }
 
 function requireConsulter(req, res, next) {
   if (!req.user || req.user.role !== 'consulter') {
-    return res.status(403).json({ status: 'error', message: 'Forbidden: consulter access required' });
+    return res.status(403).json({ status: 'error', message: 'Forbidden: Consulter access required' });
   }
+  return next();
+}
 
+function requireStudent(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ status: 'error', message: 'Unauthorized: No user found' });
+  }
+  if (req.user.role === 'student' || req.user.studentId) {
+    return next();
+  }
+  return res.status(403).json({ status: 'error', message: 'Forbidden: Student access required' });
+}
+
+function requireStaff(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ status: 'error', message: 'Unauthorized: Authentication required' });
+  }
+  const allowedRoles = ['admin', 'owner', 'consulter'];
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ status: 'error', message: 'Forbidden: Staff access required' });
+  }
   return next();
 }
 
 module.exports = {
   protect,
+  authorize,
   requireOwner,
   requireAdmin,
   requireConsulter,
+  requireStudent,
+  requireStaff,
 };

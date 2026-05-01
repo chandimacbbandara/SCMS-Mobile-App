@@ -10,15 +10,20 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import StudentDashboardScreen from '../screens/StudentDashboardScreen';
 import StudentFeedbackScreen from '../screens/StudentFeedbackScreen';
+import StudentConcernScreen from "../screens/StudentConcernScreen";
+import ConcernHistoryScreen from "../screens/ConcernHistoryScreen"; // We'll create this
+import ConcernDetailScreen from "../screens/ConcernDetailScreen"; // We'll create this
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
 import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
+
 import { useAuth } from '../context/AuthContext';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const StudentConcernStack = createNativeStackNavigator(); // Stack for concern-related screens
 
 function SplashLoader() {
   return (
@@ -26,6 +31,49 @@ function SplashLoader() {
       <ActivityIndicator size="large" color="#e53935" />
       <Text style={styles.loaderText}>Loading SCMS...</Text>
     </View>
+  );
+}
+
+// Stack Navigator for Student Concern Flow
+function StudentConcernStackNavigator() {
+  return (
+    <StudentConcernStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#05070a',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        headerBackTitle: 'Back',
+      }}
+    >
+      <StudentConcernStack.Screen 
+        name="SubmitConcern" 
+        component={StudentConcernScreen}
+        options={{ 
+          title: 'Submit Concern',
+          headerShown: true,
+        }}
+      />
+      <StudentConcernStack.Screen 
+        name="ConcernHistory" 
+        component={ConcernHistoryScreen}
+        options={{ 
+          title: 'My Concerns',
+          headerShown: true,
+        }}
+      />
+      <StudentConcernStack.Screen 
+        name="ConcernDetail" 
+        component={ConcernDetailScreen}
+        options={{ 
+          title: 'Concern Details',
+          headerShown: true,
+        }}
+      />
+    </StudentConcernStack.Navigator>
   );
 }
 
@@ -110,6 +158,16 @@ function getRoleTabs(role) {
       title: 'Feedback',
       activeIcon: 'chatbox',
       inactiveIcon: 'chatbox-outline',
+    });
+
+    // ✅ Use Stack Navigator instead of direct screen
+    tabs.push({
+      name: 'StudentConcernStack',
+      component: StudentConcernStackNavigator, // This is the stack navigator
+      label: 'Concern',
+      title: 'Concern',
+      activeIcon: 'document-text',
+      inactiveIcon: 'document-text-outline',
     });
   }
 
@@ -202,7 +260,11 @@ function AuthTabsNavigator() {
   const normalizedRole = getNormalizedRole(user?.role);
 
   return (
-    <Tab.Navigator key={`auth-tabs-${normalizedRole}`} initialRouteName="Dashboard" screenOptions={getTabScreenOptions}>
+    <Tab.Navigator 
+      key={`auth-tabs-${normalizedRole}`} 
+      initialRouteName="Dashboard" 
+      screenOptions={getTabScreenOptions}
+    >
       {roleTabs.map((tab) => (
         <Tab.Screen
           key={tab.name}

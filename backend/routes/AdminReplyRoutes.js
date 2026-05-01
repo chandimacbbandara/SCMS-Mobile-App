@@ -7,4 +7,5 @@ router.post('/submit', protect, requireAdmin, submitReply);
 router.put('/update/:id', protect, requireAdmin, updateReply);
 router.delete('/delete/:id', protect, requireAdmin, deleteReply);
 
+
 module.exports = router;
