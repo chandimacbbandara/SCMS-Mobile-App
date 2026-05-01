@@ -295,6 +295,17 @@ function AuthRootNavigator() {
   return (
     <RootStack.Navigator initialRouteName="AuthTabs" screenOptions={rootScreenOptions}>
       <RootStack.Screen name="AuthTabs" component={AuthTabsNavigator} />
+      <RootStack.Screen 
+        name="ConcernDetail" 
+        component={ConcernDetailScreen} 
+        options={{
+          headerShown: true,
+          title: 'Concern Details',
+          headerStyle: { backgroundColor: '#05070a' },
+          headerTintColor: '#fff',
+          headerBackTitle: 'Back',
+        }}
+      />
     </RootStack.Navigator>
   );
 }
