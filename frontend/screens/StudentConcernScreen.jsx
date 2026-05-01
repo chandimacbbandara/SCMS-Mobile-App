@@ -15,16 +15,18 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { submitConcernWithReport } from '../lib/api';
 
 const StudentConcernScreen = ({ navigation, route }) => {
+  const [concernType, setConcernType] = useState('Normal Concern');
   const [genre, setGenre] = useState('Academic Support and Resources');
   const [description, setDescription] = useState('');
   const [medicalReport, setMedicalReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showMedicalInfo, setShowMedicalInfo] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const genres = [
     'Academic Support and Resources',
@@ -207,6 +209,7 @@ const StudentConcernScreen = ({ navigation, route }) => {
 
       // Prepare concern data
       const concernData = {
+        concernType: concernType,
         genre: genre,
         description: description,
         studentId: user.id || user._id,
@@ -233,6 +236,7 @@ const StudentConcernScreen = ({ navigation, route }) => {
               onPress: () => {
                 setDescription('');
                 setMedicalReport(null);
+                setConcernType('Normal Concern');
                 setGenre('Academic Support and Resources');
                 setShowMedicalInfo(false);
                 navigation.goBack();
@@ -267,23 +271,89 @@ const StudentConcernScreen = ({ navigation, route }) => {
           </Text>
         </View>
 
+        {/* Concern Type Selection */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Concern Type *</Text>
+          <View style={styles.typeContainer}>
+            {['Normal Concern', 'Consulting Support'].map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.typeChip,
+                  concernType === type && styles.typeChipActive
+                ]}
+                onPress={() => {
+                  setConcernType(type);
+                  if (type === 'Consulting Support') {
+                    setGenre('Medical Concern');
+                    setShowMedicalInfo(true);
+                    setShowCategoryDropdown(false);
+                  } else {
+                    if (genre === 'Medical Concern') {
+                      setGenre('Academic Support and Resources');
+                      setShowMedicalInfo(false);
+                    }
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.typeChipText,
+                  concernType === type && styles.typeChipTextActive
+                ]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Genre Selection */}
         <View style={styles.section}>
           <Text style={styles.label}>Category *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={genre}
-              onValueChange={(itemValue) => {
-                setGenre(itemValue);
-                setShowMedicalInfo(itemValue === 'Medical Concern');
-              }}
-              style={styles.picker}
-            >
-              {genres.map((g) => (
-                <Picker.Item key={g} label={g} value={g} />
-              ))}
-            </Picker>
-          </View>
+          
+          <TouchableOpacity 
+            style={styles.dropdownButton} 
+            onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.dropdownButtonText}>{genre}</Text>
+            <Ionicons name={showCategoryDropdown ? "chevron-up" : "chevron-down"} size={20} color="#64748b" />
+          </TouchableOpacity>
+
+          {showCategoryDropdown && (
+            <View style={styles.dropdownList}>
+              <ScrollView nestedScrollEnabled style={{ maxHeight: 220 }}>
+                {(concernType === 'Consulting Support' 
+                  ? ['Medical Concern'] 
+                  : genres.filter(g => g !== 'Medical Concern')
+                ).map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    style={[
+                      styles.dropdownItem,
+                      genre === g && styles.dropdownItemActive
+                    ]}
+                    onPress={() => {
+                      setGenre(g);
+                      setShowMedicalInfo(g === 'Medical Concern');
+                      setShowCategoryDropdown(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownItemText,
+                      genre === g && styles.dropdownItemTextActive
+                    ]}>
+                      {g}
+                    </Text>
+                    {genre === g && (
+                      <Ionicons name="checkmark-circle" size={18} color="#2563eb" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* Medical Information (conditional) */}
@@ -413,15 +483,82 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  pickerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    overflow: 'hidden',
+  typeContainer: {
+    flexDirection: 'row',
+    gap: 10,
   },
-  picker: {
-    height: 50,
+  typeChip: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeChipActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#3b82f6',
+  },
+  typeChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  typeChipTextActive: {
+    color: '#2563eb',
+    fontWeight: '700',
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  dropdownButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  dropdownList: {
+    marginTop: 6,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  dropdownItemActive: {
+    backgroundColor: '#eff6ff',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  dropdownItemTextActive: {
+    color: '#2563eb',
+    fontWeight: '700',
   },
   textArea: {
     backgroundColor: '#fff',
