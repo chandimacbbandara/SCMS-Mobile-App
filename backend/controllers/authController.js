@@ -902,14 +902,11 @@ async function getConsulterDashboard(req, res) {
     }));
 
     const recentConsulting = recentConsultingDocs.map((concern) => ({
+      ...concern.toObject(),
       id: concern._id,
       studentName: concern.studentId ? `${concern.studentId.firstName} ${concern.studentId.lastName}` : 'Unknown Student',
       studentEmail: concern.studentId ? concern.studentId.email : 'No email',
       studentIdNum: concern.studentId ? concern.studentId.studentId : 'No ID',
-      genre: concern.genre,
-      description: concern.description,
-      status: concern.status,
-      createdAt: concern.createdAt,
     }));
 
     return res.json({

@@ -135,7 +135,6 @@ export default function ConsulterDashboardScreen({ navigation }) {
     ];
   }, [dashboard?.pendingConsultingConcerns, dashboard?.totalConsultingConcerns, dashboard?.totalStudents, dashboard?.weeklyFeedback]);
 
-  const recentFeedback = Array.isArray(dashboard?.recentFeedback) ? dashboard.recentFeedback : [];
   const recentConsulting = Array.isArray(dashboard?.recentConsulting) ? dashboard.recentConsulting : [];
   const consulterName = user?.username || user?.email || 'Consulter';
 
@@ -244,48 +243,6 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
                         <Text style={styles.commentText} numberOfLines={2}>{item.description || 'No description'}</Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            <View style={[styles.card, { marginTop: 16 }]}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Recent Student Feedback</Text>
-                <Text style={styles.cardSub}>Prioritize low ratings for early intervention.</Text>
-              </View>
-
-              {recentFeedback.length === 0 ? (
-                <View style={styles.emptyWrap}>
-                  <Ionicons name="document-text-outline" size={24} color="#94a3b8" />
-                  <Text style={styles.emptyText}>No feedback records found yet.</Text>
-                </View>
-              ) : (
-                <View style={styles.listWrap}>
-                  {recentFeedback.map((item, index) => {
-                    const level = getCareLevel(item.rating);
-
-                    return (
-                      <View key={item.id || `${item.studentEmail}-${index}`} style={styles.listItem}>
-                        <View style={styles.listTopRow}>
-                          <View style={styles.identityWrap}>
-                            <Text style={styles.studentName}>{item.studentName || 'Student'}</Text>
-                            <Text style={styles.studentSub}>{item.studentId || 'No ID'} • {formatDate(item.createdAt)}</Text>
-                          </View>
-
-                          <View style={[styles.priorityPill, { backgroundColor: level.bg }]}> 
-                            <Text style={[styles.priorityText, { color: level.color }]}>{level.label}</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.ratingRow}>
-                          <Ionicons name="star" size={13} color="#d97706" />
-                          <Text style={styles.ratingText}>Rating: {Number(item.rating || 0)} / 5</Text>
-                        </View>
-
-                        <Text style={styles.commentText} numberOfLines={3}>{item.comment || 'No comment'}</Text>
-                      </View>
                     );
                   })}
                 </View>

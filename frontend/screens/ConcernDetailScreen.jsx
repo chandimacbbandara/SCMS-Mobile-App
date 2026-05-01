@@ -21,6 +21,8 @@ const ConcernDetailScreen = ({ route, navigation }) => {
   const [concern, setConcern] = useState(initialConcern);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editReplyText, setEditReplyText] = useState('');
 
   const isStaff = user?.role === 'consulter' || user?.role === 'admin';
 
@@ -69,6 +71,60 @@ const ConcernDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const updateReply = async () => {
+    if (!editReplyText.trim()) {
+      Alert.alert('Error', 'Please enter a reply message.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/reply/${concernId}`, {
+        method: 'PUT',
+        token,
+        body: { reply: editReplyText },
+      });
+      
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Reply updated successfully.');
+      setIsEditing(false);
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to update reply.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete Reply',
+      'Are you sure you want to delete this reply?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: deleteReply }
+      ]
+    );
+  };
+
+  const deleteReply = async () => {
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/reply/${concernId}`, {
+        method: 'DELETE',
+        token,
+      });
+      
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Reply deleted successfully.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to delete reply.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -95,9 +151,21 @@ const ConcernDetailScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {concern.adminReply && (
+      {concern.adminReply && !isEditing && (
         <View style={[styles.section, styles.replySection]}>
-          <Text style={styles.sectionTitle}>Admin Response</Text>
+          <View style={styles.replyHeaderRow}>
+            <Text style={styles.sectionTitleNoMargin}>Admin Response</Text>
+            {isStaff && (
+              <View style={styles.replyActions}>
+                <TouchableOpacity onPress={() => { setIsEditing(true); setEditReplyText(concern.adminReply); }} style={styles.iconBtn}>
+                  <Ionicons name="pencil" size={18} color="#0f766e" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={confirmDelete} style={styles.iconBtn}>
+                  <Ionicons name="trash" size={18} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
           <View style={styles.replyContainer}>
             <Ionicons name="chatbubble" size={20} color="#4caf50" />
             <Text style={styles.replyText}>{concern.adminReply}</Text>
@@ -107,6 +175,40 @@ const ConcernDetailScreen = ({ route, navigation }) => {
               </Text>
             )}
           </View>
+        </View>
+      )}
+
+      {concern.adminReply && isEditing && (
+        <View style={[styles.section, styles.staffReplySection]}>
+          <View style={styles.replyHeaderRow}>
+            <Text style={styles.sectionTitleNoMargin}>Edit Reply</Text>
+            <TouchableOpacity onPress={() => setIsEditing(false)}>
+              <Text style={{color: '#64748b'}}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={styles.replyInput}
+            placeholder="Type your response..."
+            multiline
+            numberOfLines={4}
+            value={editReplyText}
+            onChangeText={setEditReplyText}
+            editable={!submitting}
+          />
+          <TouchableOpacity 
+            style={styles.submitReplyBtn} 
+            onPress={updateReply}
+            disabled={submitting || !editReplyText.trim()}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="save" size={16} color="#fff" />
+                <Text style={styles.submitReplyBtnText}>Update Reply</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
@@ -189,6 +291,11 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
+  sectionTitleNoMargin: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
   description: {
     fontSize: 14,
     color: '#666',
@@ -210,6 +317,19 @@ const styles = StyleSheet.create({
   },
   replySection: {
     backgroundColor: '#e8f5e9',
+  },
+  replyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  replyActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iconBtn: {
+    padding: 4,
   },
   replyContainer: {
     backgroundColor: '#fff',
