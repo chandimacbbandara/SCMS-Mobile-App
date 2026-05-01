@@ -316,7 +316,8 @@ async function register(req, res) {
       user: sanitizeUser(student),
     });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: 'Registration failed' });
+    console.error("Registration error:", error);
+    return res.status(500).json({ status: 'error', message: `Registration failed: ${error.message}` });
   }
 }
 

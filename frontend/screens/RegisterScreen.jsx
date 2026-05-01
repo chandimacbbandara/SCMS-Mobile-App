@@ -53,12 +53,6 @@ export default function RegisterScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
-  
-  // ✅ ADD NEW STATE VARIABLES
-  const [age, setAge] = useState('');
-  const [gpa, setGpa] = useState('');
-  const [year, setYear] = useState('');
-  const [gender, setGender] = useState('');
 
   const [emailVerified, setEmailVerified] = useState(false);
   const [sendCodeMessage, setSendCodeMessage] = useState('');
@@ -145,45 +139,7 @@ export default function RegisterScreen({ navigation }) {
     }
   }
 
-  // ✅ ADD VALIDATION FUNCTION
-  function validateAdditionalFields() {
-    if (!age) {
-      setGeneralError('Please enter your age');
-      return false;
-    }
-    const ageNum = parseInt(age);
-    if (isNaN(ageNum) || ageNum < 16 || ageNum > 100) {
-      setGeneralError('Age must be between 16 and 100');
-      return false;
-    }
 
-    if (!gpa) {
-      setGeneralError('Please enter your GPA');
-      return false;
-    }
-    const gpaNum = parseFloat(gpa);
-    if (isNaN(gpaNum) || gpaNum < 0 || gpaNum > 4.0) {
-      setGeneralError('GPA must be between 0 and 4.0');
-      return false;
-    }
-
-    if (!year) {
-      setGeneralError('Please enter your year of study');
-      return false;
-    }
-    const yearNum = parseInt(year);
-    if (isNaN(yearNum) || yearNum < 1 || yearNum > 5) {
-      setGeneralError('Year must be between 1 and 5');
-      return false;
-    }
-
-    if (!gender) {
-      setGeneralError('Please select your gender');
-      return false;
-    }
-
-    return true;
-  }
 
   async function handleRegister() {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !studentId.trim()) {
@@ -206,16 +162,10 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    // ✅ VALIDATE ADDITIONAL FIELDS
-    if (!validateAdditionalFields()) {
-      return;
-    }
-
     setRegisterLoading(true);
     setGeneralError('');
 
     try {
-      // ✅ INCLUDE ADDITIONAL FIELDS IN REGISTRATION
       await register(
         {
           firstName: firstName.trim(),
@@ -224,10 +174,6 @@ export default function RegisterScreen({ navigation }) {
           studentId: studentId.trim(),
           password,
           confirmPassword,
-          age: parseInt(age),
-          gpa: parseFloat(gpa),
-          year: parseInt(year),
-          gender,
         },
         photoFile
       );
@@ -277,11 +223,11 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.rowTwo}>
               <View style={[styles.inputGroup, styles.flexOne]}>
                 <Text style={styles.label}>First name *</Text>
-                <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" />
+                <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" placeholderTextColor="#9ca3af" />
               </View>
               <View style={[styles.inputGroup, styles.flexOne]}>
                 <Text style={styles.label}>Last name *</Text>
-                <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" />
+                <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last name" placeholderTextColor="#9ca3af" />
               </View>
             </View>
 
@@ -296,6 +242,7 @@ export default function RegisterScreen({ navigation }) {
                     setEmailVerified(false);
                   }}
                   placeholder="you@example.com"
+                  placeholderTextColor="#9ca3af"
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -314,6 +261,7 @@ export default function RegisterScreen({ navigation }) {
                   value={code}
                   onChangeText={setCode}
                   placeholder="6-digit code"
+                  placeholderTextColor="#9ca3af"
                   keyboardType="numeric"
                   maxLength={6}
                 />
@@ -330,63 +278,7 @@ export default function RegisterScreen({ navigation }) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Student ID *</Text>
-              <TextInput style={styles.input} value={studentId} onChangeText={setStudentId} placeholder="e.g. STU2024001" />
-            </View>
-
-            {/* ✅ ADD NEW SECTION FOR AGE, GPA, YEAR, GENDER */}
-            <View style={styles.divider} />
-            <Text style={styles.sectionSubtitle}>Academic Information</Text>
-            
-            <View style={styles.rowTwo}>
-              <View style={[styles.inputGroup, styles.flexOne]}>
-                <Text style={styles.label}>Age *</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={age} 
-                  onChangeText={setAge} 
-                  placeholder="Age" 
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={[styles.inputGroup, styles.flexOne]}>
-                <Text style={styles.label}>GPA *</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={gpa} 
-                  onChangeText={setGpa} 
-                  placeholder="0.0 - 4.0" 
-                  keyboardType="decimal-pad"
-                />
-              </View>
-            </View>
-
-            <View style={styles.rowTwo}>
-              <View style={[styles.inputGroup, styles.flexOne]}>
-                <Text style={styles.label}>Year of Study *</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={year} 
-                  onChangeText={setYear} 
-                  placeholder="1-5" 
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={[styles.inputGroup, styles.flexOne]}>
-                <Text style={styles.label}>Gender *</Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={gender}
-                    onValueChange={(itemValue) => setGender(itemValue)}
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Select Gender" value="" />
-                    <Picker.Item label="Male" value="M" />
-                    <Picker.Item label="Female" value="F" />
-                    <Picker.Item label="Other" value="Other" />
-                    <Picker.Item label="Prefer not to say" value="Prefer not to say" />
-                  </Picker>
-                </View>
-              </View>
+              <TextInput style={styles.input} value={studentId} onChangeText={setStudentId} placeholder="e.g. STU2024001" placeholderTextColor="#9ca3af" />
             </View>
           </View>
 
@@ -401,6 +293,7 @@ export default function RegisterScreen({ navigation }) {
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Create password"
+                  placeholderTextColor="#9ca3af"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
@@ -418,6 +311,7 @@ export default function RegisterScreen({ navigation }) {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="Confirm password"
+                  placeholderTextColor="#9ca3af"
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                 />
