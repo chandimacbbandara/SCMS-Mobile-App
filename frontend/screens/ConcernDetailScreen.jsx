@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest } from '../lib/api';
+import { apiRequest, getApiBaseUrl } from '../lib/api';
 
 const ConcernDetailScreen = ({ route, navigation }) => {
   const { concern: initialConcern } = route.params;
@@ -41,9 +41,54 @@ const ConcernDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const downloadMedicalReport = () => {
-    // Implement download functionality
-    Alert.alert('Download', 'Medical report download feature');
+  const getStatusText = (status) => {
+    if (status === 'reviewing') return 'In Progress';
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const downloadMedicalReport = async () => {
+    if (!concern.medicalReport || !concern.medicalReport.path) {
+      Alert.alert('Error', 'Medical report file not found.');
+      return;
+    }
+    
+    // Normalize path to prevent double slashes
+    const rawPath = concern.medicalReport.path.startsWith('/') 
+      ? concern.medicalReport.path 
+      : `/${concern.medicalReport.path}`;
+      
+    const baseUrl = getApiBaseUrl().replace(/\/api$/, '');
+    const fileUrl = `${baseUrl}${rawPath}`;
+    
+    try {
+      const supported = await Linking.canOpenURL(fileUrl);
+      if (supported) {
+        await Linking.openURL(fileUrl);
+      } else {
+        Alert.alert('Error', 'Cannot open the medical report link. Device may not support this file type.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open the medical report. ' + error.message);
+    }
+  };
+
+  const markAsReviewing = async () => {
+    setSubmitting(true);
+    try {
+      const concernId = concern.id || concern._id;
+      const result = await apiRequest(`/concerns/status/${concernId}`, {
+        method: 'PUT',
+        token,
+        body: { status: 'reviewing' },
+      });
+      setConcern(result.data || concern);
+      Alert.alert('Success', 'Concern marked as In Progress.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to update status.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const submitReply = async () => {
@@ -131,13 +176,25 @@ const ConcernDetailScreen = ({ route, navigation }) => {
         <Text style={styles.genre}>{concern.genre}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(concern.status) }]}>
           <Text style={styles.statusText}>
-            {concern.status.charAt(0).toUpperCase() + concern.status.slice(1)}
+            {getStatusText(concern.status)}
           </Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Description</Text>
+        <View style={styles.descriptionHeaderRow}>
+          <Text style={styles.sectionTitleNoMargin}>Description</Text>
+          {isStaff && concern.status === 'pending' && (
+            <TouchableOpacity 
+              style={styles.markProgressBtn} 
+              onPress={markAsReviewing}
+              disabled={submitting}
+            >
+              <Ionicons name="checkmark-circle-outline" size={16} color="#2196f3" />
+              <Text style={styles.markProgressText}>Mark as In Progress</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.description}>{concern.description}</Text>
       </View>
 
@@ -295,6 +352,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  descriptionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  markProgressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  markProgressText: {
+    color: '#2196f3',
+    fontSize: 12,
+    fontWeight: '600',
   },
   description: {
     fontSize: 14,
