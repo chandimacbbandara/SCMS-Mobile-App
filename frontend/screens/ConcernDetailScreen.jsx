@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Image,
+  Linking,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
@@ -47,19 +49,21 @@ const ConcernDetailScreen = ({ route, navigation }) => {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  const downloadMedicalReport = async () => {
-    if (!concern.medicalReport || !concern.medicalReport.path) {
-      Alert.alert('Error', 'Medical report file not found.');
-      return;
-    }
-    
-    // Normalize path to prevent double slashes
+  const getReportUrl = () => {
+    if (!concern.medicalReport || !concern.medicalReport.path) return null;
     const rawPath = concern.medicalReport.path.startsWith('/') 
       ? concern.medicalReport.path 
       : `/${concern.medicalReport.path}`;
-      
     const baseUrl = getApiBaseUrl().replace(/\/api$/, '');
-    const fileUrl = `${baseUrl}${rawPath}`;
+    return `${baseUrl}${rawPath}`;
+  };
+
+  const downloadMedicalReport = async () => {
+    const fileUrl = getReportUrl();
+    if (!fileUrl) {
+      Alert.alert('Error', 'Medical report file not found.');
+      return;
+    }
     
     try {
       await Linking.openURL(fileUrl);
@@ -196,9 +200,25 @@ const ConcernDetailScreen = ({ route, navigation }) => {
       {concern.medicalReport && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Medical Report</Text>
+          
+          {/* Inline Image Preview */}
+          {concern.medicalReport.mimetype && concern.medicalReport.mimetype.startsWith('image/') && (
+            <View style={styles.imagePreviewContainer}>
+              <Image 
+                source={{ uri: getReportUrl() }} 
+                style={styles.imagePreview} 
+                resizeMode="contain"
+              />
+            </View>
+          )}
+
           <TouchableOpacity style={styles.downloadButton} onPress={downloadMedicalReport}>
             <Ionicons name="document-attach" size={20} color="#fff" />
-            <Text style={styles.downloadButtonText}>View Medical Report</Text>
+            <Text style={styles.downloadButtonText}>
+              {concern.medicalReport.mimetype && concern.medicalReport.mimetype.includes('pdf') 
+                ? 'Open PDF Report' 
+                : 'View Full Image'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -459,6 +479,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
   },
 });
 
