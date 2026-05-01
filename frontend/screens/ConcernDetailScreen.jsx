@@ -62,14 +62,9 @@ const ConcernDetailScreen = ({ route, navigation }) => {
     const fileUrl = `${baseUrl}${rawPath}`;
     
     try {
-      const supported = await Linking.canOpenURL(fileUrl);
-      if (supported) {
-        await Linking.openURL(fileUrl);
-      } else {
-        Alert.alert('Error', 'Cannot open the medical report link. Device may not support this file type.');
-      }
+      await Linking.openURL(fileUrl);
     } catch (error) {
-      Alert.alert('Error', 'Failed to open the medical report. ' + error.message);
+      Alert.alert('Error', 'Failed to open the medical report. Ensure you have a browser or viewer installed.');
     }
   };
 
