@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,7 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { getStudentConcerns } from '../lib/api';
+import {
+  getStudentConcerns,
+  getMyNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../lib/api';
 
 function getInitials(firstName, lastName, email) {
   const f = String(firstName || '').trim();
@@ -145,6 +151,10 @@ export default function StudentDashboardScreen({ navigation }) {
   const [trackingConcerns, setTrackingConcerns] = useState([]);
   const [trackingLoading, setTrackingLoading] = useState(true);
   const [trackingError, setTrackingError] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationsError, setNotificationsError] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const studentId = user?.id || user?._id;
 
@@ -207,25 +217,55 @@ export default function StudentDashboardScreen({ navigation }) {
     [studentId]
   );
 
+  const loadNotifications = useCallback(
+    async (isRefresh = false) => {
+      if (!studentId) {
+        setNotifications([]);
+        setNotificationsLoading(false);
+        setNotificationsError('');
+        return;
+      }
+
+      if (!isRefresh) {
+        setNotificationsLoading(true);
+      }
+
+      setNotificationsError('');
+
+      try {
+        const response = await getMyNotifications();
+        const data = Array.isArray(response.data) ? response.data : [];
+        setNotifications(data);
+      } catch (error) {
+        setNotificationsError(error.message || 'Failed to load notifications');
+      } finally {
+        setNotificationsLoading(false);
+      }
+    },
+    [studentId]
+  );
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshMe(), loadConcernTracking(true)]);
+      await Promise.all([refreshMe(), loadConcernTracking(true), loadNotifications(true)]);
     } catch (error) {
       // No-op: existing data remains visible.
     } finally {
       setRefreshing(false);
     }
-  }, [refreshMe, loadConcernTracking]);
+  }, [refreshMe, loadConcernTracking, loadNotifications]);
 
   useEffect(() => {
     loadConcernTracking(false);
-  }, [loadConcernTracking]);
+    loadNotifications(false);
+  }, [loadConcernTracking, loadNotifications]);
 
   useFocusEffect(
     useCallback(() => {
       loadConcernTracking(true);
-    }, [loadConcernTracking])
+      loadNotifications(true);
+    }, [loadConcernTracking, loadNotifications])
   );
 
   const displayName = useMemo(() => {
@@ -258,6 +298,10 @@ export default function StudentDashboardScreen({ navigation }) {
 
   const idPhotoStatus = user?.studentIdPhoto ? 'Uploaded' : 'Missing';
 
+  const unreadCount = useMemo(() => {
+    return notifications.filter((n) => !n.isRead).length;
+  }, [notifications]);
+
   const activeConcerns = useMemo(() => {
     return trackingConcerns
       .filter((concern) => ['pending', 'reviewing'].includes(String(concern?.status || '').toLowerCase()))
@@ -283,6 +327,18 @@ export default function StudentDashboardScreen({ navigation }) {
         <View style={styles.topNavRow}>
           <Text style={styles.topNavTitle}>Student Dashboard</Text>
           <View style={styles.topNavActions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              activeOpacity={0.85}
+              onPress={() => setShowNotifications(true)}
+            >
+              <Ionicons name="notifications-outline" size={18} color="#374151" />
+              {unreadCount > 0 ? (
+                <View style={styles.badgeDot}>
+                  <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleRefresh}>
               <Ionicons name="refresh-outline" size={18} color="#374151" />
             </TouchableOpacity>
@@ -534,6 +590,103 @@ export default function StudentDashboardScreen({ navigation }) {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showNotifications}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNotifications(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                <Ionicons name="close" size={20} color="#0f172a" />
+              </TouchableOpacity>
+            </View>
+
+            {notificationsLoading ? (
+              <View style={styles.modalState}> 
+                <ActivityIndicator size="small" color="#e53935" />
+                <Text style={styles.modalStateText}>Loading notifications...</Text>
+              </View>
+            ) : notificationsError ? (
+              <View style={styles.modalError}> 
+                <Ionicons name="alert-circle-outline" size={18} color="#b91c1c" />
+                <Text style={styles.modalErrorText}>{notificationsError}</Text>
+              </View>
+            ) : notifications.length === 0 ? (
+              <View style={styles.modalState}> 
+                <Ionicons name="notifications-off-outline" size={20} color="#94a3b8" />
+                <Text style={styles.modalStateText}>No notifications yet</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+                {notifications.map((item) => (
+                  <TouchableOpacity
+                    key={item._id}
+                    style={[
+                      styles.notificationItem,
+                      !item.isRead && styles.notificationItemUnread,
+                    ]}
+                    activeOpacity={0.9}
+                    onPress={async () => {
+                      if (!item.isRead) {
+                        try {
+                          await markNotificationRead(item._id);
+                          setNotifications((prev) =>
+                            prev.map((n) => (n._id === item._id ? { ...n, isRead: true } : n))
+                          );
+                        } catch (error) {
+                          // Ignore read failures to keep UI usable.
+                        }
+                      }
+
+                      if (item.concernId) {
+                        const concern = trackingConcerns.find((c) => c._id === item.concernId);
+                        if (concern) {
+                          navigation.navigate('ConcernDetail', { concern });
+                          setShowNotifications(false);
+                        }
+                      }
+                    }}
+                  >
+                    <View style={styles.notificationIcon}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={18} color="#dc2626" />
+                    </View>
+                    <View style={styles.notificationBody}>
+                      <Text style={styles.notificationTitle}>{item.title}</Text>
+                      <Text style={styles.notificationMessage} numberOfLines={2}>
+                        {item.message}
+                      </Text>
+                      <Text style={styles.notificationDate}>
+                        {formatConcernDate(item.createdAt)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {notifications.length > 0 && (
+              <TouchableOpacity
+                style={styles.modalAction}
+                onPress={async () => {
+                  try {
+                    await markAllNotificationsRead();
+                    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+                  } catch (error) {
+                    // Ignore errors to keep UI usable.
+                  }
+                }}
+              >
+                <Text style={styles.modalActionText}>Mark all as read</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -586,6 +739,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 999,
+    backgroundColor: '#dc2626',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -1014,6 +1186,120 @@ const styles = StyleSheet.create({
   trackingLinkText: {
     fontSize: 11,
     color: '#dc2626',
+    fontWeight: '800',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '75%',
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0f172a',
+  },
+  modalState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 24,
+  },
+  modalStateText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  modalError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    padding: 10,
+  },
+  modalErrorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#b91c1c',
+  },
+  modalList: {
+    marginBottom: 10,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f8fafc',
+    marginBottom: 8,
+  },
+  notificationItemUnread: {
+    borderColor: '#fbcaca',
+    backgroundColor: '#fff1f2',
+  },
+  notificationIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBody: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  notificationMessage: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  notificationDate: {
+    marginTop: 4,
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '700',
+  },
+  modalAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fbcaca',
+    backgroundColor: '#fff5f5',
+  },
+  modalActionText: {
+    color: '#dc2626',
+    fontSize: 12,
     fontWeight: '800',
   },
   emptyStateCard: {

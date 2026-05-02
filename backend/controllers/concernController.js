@@ -1,5 +1,8 @@
 const Concern = require('../models/Concern');
 const Student = require('../models/Student');
+const Notification = require('../models/Notification');
+const { isMailConfigured, sendMail } = require('../utils/mailer');
+const { buildBrandedEmail } = require('../utils/emailTemplates');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -22,6 +25,41 @@ function removeFileIfExists(filePath) {
     }
   } catch (error) {
     console.error('Failed to remove file:', filePath, error.message);
+  }
+}
+
+function buildConcernRef(concern) {
+  return `C-${String(concern?._id || '').slice(-6).toUpperCase()}`;
+}
+
+async function createStudentNotification({ studentId, concernId, type, title, message }) {
+  if (!studentId) {
+    return null;
+  }
+
+  try {
+    return await Notification.create({
+      studentId,
+      concernId,
+      type,
+      title,
+      message,
+    });
+  } catch (error) {
+    console.error('Failed to create notification:', error.message);
+    return null;
+  }
+}
+
+async function sendConcernEmail({ to, subject, text, html }) {
+  if (!to || !isMailConfigured()) {
+    return;
+  }
+
+  try {
+    await sendMail({ to, subject, text, html });
+  } catch (error) {
+    console.error('Failed to send concern email:', error.message);
   }
 }
 
@@ -169,6 +207,40 @@ exports.submitConcern = async (req, res) => {
       await concern.save();
 
       console.log('Concern saved successfully with ID:', concern._id);
+
+      const concernRef = buildConcernRef(concern);
+      const studentEmail = studentExists.email;
+      const studentName = `${studentExists.firstName || ''} ${studentExists.lastName || ''}`.trim() || 'Student';
+
+      await createStudentNotification({
+        studentId: concern.studentId,
+        concernId: concern._id,
+        type: 'concern_submitted',
+        title: 'Concern submitted',
+        message: `We received your concern (${concernRef}). Status: Pending review.`,
+      });
+
+      const submittedEmail = buildBrandedEmail({
+        greetingName: studentName,
+        title: 'Concern submitted',
+        subtitle: `Your concern ${concernRef} is now in our review queue.`,
+        lines: [
+          `Type: ${concern.concernType}.`,
+          `Category: ${concern.genre}.`,
+          'Current status: Pending review.',
+          'We will notify you as soon as a response is available.',
+        ],
+        highlightLabel: 'Concern Reference',
+        highlightValue: concernRef,
+        footer: 'SCMS Team',
+      });
+
+      await sendConcernEmail({
+        to: studentEmail,
+        subject: 'SCMS: Concern submitted',
+        text: submittedEmail.text,
+        html: submittedEmail.html,
+      });
 
       res.status(201).json({
         success: true,
@@ -363,6 +435,38 @@ exports.replyToConcern = async (req, res) => {
 
     console.log('Reply added to concern:', concernId);
 
+    const studentEmail = concern?.studentId?.email;
+    const studentName = `${concern?.studentId?.firstName || ''} ${concern?.studentId?.lastName || ''}`.trim() || 'Student';
+    const concernRef = buildConcernRef(concern);
+
+    await createStudentNotification({
+      studentId: concern?.studentId?._id,
+      concernId: concern?._id,
+      type: 'concern_replied',
+      title: 'Concern reply received',
+      message: `Your concern (${concernRef}) has been reviewed. A reply is now available.`,
+    });
+
+    const replyEmail = buildBrandedEmail({
+      greetingName: studentName,
+      title: 'Concern reply available',
+      subtitle: `Your concern ${concernRef} has been reviewed.`,
+      lines: [
+        'A reply is now available in the app.',
+        'Open your Concern History to view the response.',
+      ],
+      highlightLabel: 'Concern Reference',
+      highlightValue: concernRef,
+      footer: 'SCMS Team',
+    });
+
+    await sendConcernEmail({
+      to: studentEmail,
+      subject: 'SCMS: Concern reply available',
+      text: replyEmail.text,
+      html: replyEmail.html,
+    });
+
     res.json({
       success: true,
       message: 'Reply added successfully',
@@ -406,6 +510,37 @@ exports.updateReply = async (req, res) => {
     if (!concern) {
       return res.status(404).json({ success: false, message: 'Concern not found' });
     }
+
+    const studentEmail = concern?.studentId?.email;
+    const studentName = `${concern?.studentId?.firstName || ''} ${concern?.studentId?.lastName || ''}`.trim() || 'Student';
+    const concernRef = buildConcernRef(concern);
+
+    await createStudentNotification({
+      studentId: concern?.studentId?._id,
+      concernId: concern?._id,
+      type: 'concern_replied',
+      title: 'Concern reply updated',
+      message: `Your concern (${concernRef}) has an updated reply.`,
+    });
+
+    const updatedEmail = buildBrandedEmail({
+      greetingName: studentName,
+      title: 'Concern reply updated',
+      subtitle: `Your concern ${concernRef} has an updated response.`,
+      lines: [
+        'Please check the app for the latest details.',
+      ],
+      highlightLabel: 'Concern Reference',
+      highlightValue: concernRef,
+      footer: 'SCMS Team',
+    });
+
+    await sendConcernEmail({
+      to: studentEmail,
+      subject: 'SCMS: Concern reply updated',
+      text: updatedEmail.text,
+      html: updatedEmail.html,
+    });
 
     res.json({ success: true, message: 'Reply updated successfully', data: concern });
   } catch (error) {
