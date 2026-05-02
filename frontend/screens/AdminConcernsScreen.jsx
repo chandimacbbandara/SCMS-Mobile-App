@@ -34,7 +34,7 @@ const STATUS_OPTIONS = [
   { id: 'all', label: 'All Status', color: '#64748b' },
   { id: 'pending', label: 'Pending', color: '#f59e0b' },
   { id: 'reviewing', label: 'Reviewing', color: '#3b82f6' },
-  { id: 'resolved', label: 'Resolved', color: '#10b981' },
+  { id: 'resolved', label: 'Completed', color: '#10b981' },
   { id: 'rejected', label: 'Rejected', color: '#ef4444' },
 ];
 
@@ -54,6 +54,21 @@ function formatDate(value) {
 function getStatusColor(status) {
   const statusObj = STATUS_OPTIONS.find(s => s.id === status);
   return statusObj?.color || '#64748b';
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'reviewing':
+      return 'Reviewing';
+    case 'resolved':
+      return 'Completed';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return 'Unknown';
+  }
 }
 
 function getPriorityColor(priority) {
@@ -166,7 +181,7 @@ export default function AdminConcernsScreen({ navigation }) {
               </View>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20', borderColor: getStatusColor(item.status) }]}>
-              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status.toUpperCase()}</Text>
+              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{getStatusLabel(item.status).toUpperCase()}</Text>
             </View>
           </View>
 
@@ -218,7 +233,7 @@ export default function AdminConcernsScreen({ navigation }) {
         </View>
         <View style={[styles.statPill, { borderLeftColor: '#10b981' }]}>
           <Text style={styles.statValue}>{stats.resolved}</Text>
-          <Text style={styles.statLabel}>Resolved</Text>
+          <Text style={styles.statLabel}>Completed</Text>
         </View>
       </ScrollView>
 
@@ -294,7 +309,7 @@ export default function AdminConcernsScreen({ navigation }) {
                       </View>
                       <View style={[styles.statusBadge, { backgroundColor: getStatusColor(concern.status) + '20', borderColor: getStatusColor(concern.status) }]}>
                         <Text style={[styles.statusText, { color: getStatusColor(concern.status) }]}>
-                          {concern.status.toUpperCase()}
+                          {getStatusLabel(concern.status).toUpperCase()}
                         </Text>
                       </View>
                     </View>

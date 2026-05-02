@@ -7,6 +7,7 @@ const Consulter = require('../models/Consulter');
 const Feedback = require('../models/Feedback');
 const Concern = require('../models/Concern');
 const { isMailConfigured, sendMail } = require('../utils/mailer');
+const { buildBrandedEmail } = require('../utils/emailTemplates');
 
 const OWNER_EMAIL = 'admin@akbinstitute.edu.lk';
 const OWNER_PASSWORD = 'akb@18789691';
@@ -124,27 +125,19 @@ function makeSixDigitCode() {
 function buildVerificationEmail({ name, code, title, purposeLine }) {
   const displayName = String(name || '').trim() || 'Student';
 
-  return {
-    text: [
-      `Hello ${displayName},`,
-      '',
-      purposeLine,
-      `Your verification code is: ${code}`,
-      'This code expires in 10 minutes.',
-      '',
-      'If you did not request this, please ignore this email.',
-      '',
-      'SCMS Team',
-    ].join('\n'),
-    html: [
-      `<p>Hello ${displayName},</p>`,
-      `<p>${purposeLine}</p>`,
-      `<p><strong>${title}:</strong> <span style="font-size:18px;letter-spacing:2px;">${code}</span></p>`,
-      '<p>This code expires in 10 minutes.</p>',
-      '<p>If you did not request this, please ignore this email.</p>',
-      '<p>SCMS Team</p>',
-    ].join(''),
-  };
+  return buildBrandedEmail({
+    greetingName: displayName,
+    title,
+    subtitle: purposeLine,
+    lines: [
+      'Use the verification code below to continue.',
+      'For your security, this code expires in 10 minutes.',
+      'If you did not request this, you can safely ignore this message.',
+    ],
+    highlightLabel: 'Verification Code',
+    highlightValue: code,
+    footer: 'SCMS Team',
+  });
 }
 
 async function sendRegisterCode(req, res) {

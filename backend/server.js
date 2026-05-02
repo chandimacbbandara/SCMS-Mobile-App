@@ -13,6 +13,7 @@ const authRoutes = require('./routes/authRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const adminReplyRoutes = require('./routes/AdminReplyRoutes');
 const concernRoutes = require('./routes/concernRoutes'); // Keep this
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Middleware
 app.use(express.json());
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin-reply', adminReplyRoutes);
 app.use('/api/concerns', concernRoutes); // Move this AFTER app is defined
+app.use('/api/notifications', notificationRoutes);
 
 // Test route
 app.get('/', (req, res) => {

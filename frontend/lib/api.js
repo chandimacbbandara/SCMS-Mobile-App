@@ -233,6 +233,26 @@ export async function deleteConcern(concernId) {
   });
 }
 
+// ============ NOTIFICATION FUNCTIONS ============
+
+export async function getMyNotifications() {
+  return apiRequest('/notifications/my', {
+    method: 'GET',
+  });
+}
+
+export async function markNotificationRead(notificationId) {
+  return apiRequest(`/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return apiRequest('/notifications/read-all', {
+    method: 'PATCH',
+  });
+}
+
 // ============ UTILITY FUNCTIONS ============
 
 // Upload a generic file
@@ -272,6 +292,9 @@ export default {
   updateConcernStatus,
   downloadMedicalReport,
   deleteConcern,
+  getMyNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
   uploadFile,
   checkHealth,
 };
