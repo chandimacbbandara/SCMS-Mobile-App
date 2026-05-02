@@ -56,6 +56,23 @@ function getStatusLabel(status) {
   }
 }
 
+function resolveAssetUrl(apiBaseUrl, pathValue) {
+  if (!pathValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue;
+  }
+
+  const base = String(apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) {
+    return pathValue;
+  }
+
+  return `${base}${String(pathValue).startsWith('/') ? '' : '/'}${pathValue}`;
+}
+
 export default function AdminConcernDetailScreen({ navigation, route }) {
   const { concern } = route?.params || {};
   const { token, apiBaseUrl } = useAuth();
@@ -221,7 +238,7 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
             <View style={styles.largeAvatar}>
               {student?.studentIdPhoto ? (
                   <Image
-                      source={{ uri: `${apiBaseUrl}${student.studentIdPhoto}` }}
+                      source={{ uri: resolveAssetUrl(apiBaseUrl, student.studentIdPhoto) }}
                       style={styles.avatarImage}
                   />
               ) : (

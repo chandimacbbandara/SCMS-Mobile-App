@@ -18,6 +18,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 
+function resolveAssetUrl(apiBaseUrl, pathValue) {
+  if (!pathValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue;
+  }
+
+  const base = String(apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) {
+    return pathValue;
+  }
+
+  return `${base}${String(pathValue).startsWith('/') ? '' : '/'}${pathValue}`;
+}
+
 export default function StudentSettingsScreen({ navigation }) {
   const { user, apiBaseUrl, updateStudentProfile } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -31,9 +48,7 @@ export default function StudentSettingsScreen({ navigation }) {
   const [gender, setGender] = useState(user?.gender || '');
   const [profilePhoto, setProfilePhoto] = useState(null);
 
-  const studentPhotoUri = user?.studentIdPhoto
-    ? (user.studentIdPhoto.startsWith('http') ? user.studentIdPhoto : `${apiBaseUrl.replace('/api', '')}${user.studentIdPhoto}`)
-    : null;
+  const studentPhotoUri = resolveAssetUrl(apiBaseUrl, user?.studentIdPhoto);
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

@@ -85,6 +85,23 @@ function getPriorityColor(priority) {
   }
 }
 
+function resolveAssetUrl(apiBaseUrl, pathValue) {
+  if (!pathValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue;
+  }
+
+  const base = String(apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) {
+    return pathValue;
+  }
+
+  return `${base}${String(pathValue).startsWith('/') ? '' : '/'}${pathValue}`;
+}
+
 export default function AdminConcernsScreen({ navigation }) {
   const { token, apiBaseUrl } = useAuth();
 
@@ -299,7 +316,7 @@ export default function AdminConcernsScreen({ navigation }) {
                         <View style={styles.avatar}>
                           {concern.studentId?.studentIdPhoto ? (
                               <Image
-                                  source={{ uri: `${apiBaseUrl}${concern.studentId.studentIdPhoto}` }}
+                                  source={{ uri: resolveAssetUrl(apiBaseUrl, concern.studentId.studentIdPhoto) }}
                                   style={styles.avatarImage}
                               />
                           ) : (

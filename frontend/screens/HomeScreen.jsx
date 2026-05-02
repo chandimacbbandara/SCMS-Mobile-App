@@ -247,10 +247,10 @@ function StepRow({ item, index, isActive, onPress }) {
     <Animated.View style={[styles.stepCard, { backgroundColor: bgColor }]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.stepCardHead}>
         <LinearGradient
-          colors={isActive ? ['#e53935', '#b71c1c'] : ['#2a2a2a', '#222222']}
+          colors={isActive ? ['#e53935', '#b71c1c'] : ['#fef2f2', '#fee2e2']}
           style={styles.stepNum}
         >
-          <Text style={[styles.stepNumText, isActive && { color: '#fff' }]}>{index + 1}</Text>
+          <Text style={[styles.stepNumText, isActive ? { color: '#fff' } : { color: '#e53935' }]}>{index + 1}</Text>
         </LinearGradient>
         <View style={styles.stepInfo}>
           <View style={styles.stepIconRow}>
@@ -261,7 +261,7 @@ function StepRow({ item, index, isActive, onPress }) {
         <Ionicons
           name={isActive ? 'remove-circle' : 'add-circle'}
           size={20}
-          color={isActive ? '#e53935' : '#2a2a2a'}
+          color="#e53935"
         />
       </TouchableOpacity>
       <Animated.View style={{ height: animH, overflow: 'hidden' }}>
@@ -465,7 +465,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* ── FOOTER ── */}
-        <LinearGradient colors={['#1f2937', '#111827']} style={styles.footer}>
+        <LinearGradient colors={['#4b5563', '#1f2937']} style={styles.footer}>
           <View style={styles.footerMain}>
             <View style={styles.footerTop}>
               <Image source={brandLogo} style={styles.footerLogo} resizeMode="cover" />
@@ -824,5 +824,5 @@ const styles = StyleSheet.create({
   footerContacts: { gap: 4 },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   footerTxt: { color: '#9ca3af', fontSize: 10, fontWeight: '600' },
-  footerCopy: { color: '#4b5563', fontSize: 9, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  footerCopy: { color: '#9ca3af', fontSize: 9, fontWeight: '600', marginTop: 8, textAlign: 'center' },
 });

@@ -64,6 +64,23 @@ function getStatusColor(status) {
   return statusObj?.color || '#64748b';
 }
 
+function resolveAssetUrl(apiBaseUrl, pathValue) {
+  if (!pathValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue;
+  }
+
+  const base = String(apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) {
+    return pathValue;
+  }
+
+  return `${base}${String(pathValue).startsWith('/') ? '' : '/'}${pathValue}`;
+}
+
 export default function AdminDashboardScreen({ navigation }) {
   const { token, user, logout, apiBaseUrl } = useAuth();
 
@@ -403,7 +420,7 @@ export default function AdminDashboardScreen({ navigation }) {
                                 <View style={concernsStyles.avatar}>
                                   {concern.studentId?.studentIdPhoto ? (
                                       <Image
-                                          source={{ uri: `${apiBaseUrl}${concern.studentId.studentIdPhoto}` }}
+                                          source={{ uri: resolveAssetUrl(apiBaseUrl, concern.studentId.studentIdPhoto) }}
                                           style={concernsStyles.avatarImage}
                                       />
                                   ) : (
