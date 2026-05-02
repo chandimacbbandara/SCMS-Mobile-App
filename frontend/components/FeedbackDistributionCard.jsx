@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#9fc0ff',
+    backgroundColor: '#e53935',
   },
   scoreCount: {
     minWidth: 28,

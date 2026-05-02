@@ -27,12 +27,11 @@ const concernSchema = new mongoose.Schema({
     size: Number
   },
   age: Number,
-  gpa: Number,
-  year: Number,
+  mobileNumber: String,
+  address: String,
   gender: {
     type: String,
-    enum: ['M', 'F', 'Other', 'Prefer not to say'],
-    default: 'Prefer not to say'  // ✅ Allow default value
+    enum: ['M', 'F'],
   },
   status: {
     type: String,

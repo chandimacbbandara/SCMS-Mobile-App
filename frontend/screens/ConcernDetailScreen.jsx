@@ -1,4 +1,3 @@
-// screens/ConcernDetailScreen.jsx
 import React, { useState } from 'react';
 import {
   View,
@@ -11,7 +10,10 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest, getApiBaseUrl } from '../lib/api';
@@ -28,35 +30,23 @@ const ConcernDetailScreen = ({ route, navigation }) => {
 
   const isStaff = user?.role === 'consulter' || user?.role === 'admin';
 
-  const getStatusColor = (status) => {
-    switch (status) {
+  const getStatusConfig = (status) => {
+    const s = String(status || 'pending').toLowerCase();
+    switch (s) {
       case 'pending':
-        return '#ff9800';
+        return { color: '#f59e0b', bg: '#fef3c7', icon: 'time-outline', label: 'Pending' };
       case 'reviewing':
-        return '#2196f3';
+        return { color: '#3b82f6', bg: '#dbeafe', icon: 'eye-outline', label: 'Reviewing' };
       case 'resolved':
-        return '#4caf50';
+        return { color: '#16a34a', bg: '#dcfce7', icon: 'checkmark-circle-outline', label: 'Completed' };
       case 'rejected':
-        return '#f44336';
+        return { color: '#dc2626', bg: '#fee2e2', icon: 'close-circle-outline', label: 'Rejected' };
       default:
-        return '#999';
+        return { color: '#64748b', bg: '#f1f5f9', icon: 'help-circle-outline', label: 'Unknown' };
     }
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'reviewing':
-        return 'Reviewing';
-      case 'resolved':
-        return 'Completed';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return 'Unknown';
-    }
-  };
+  const config = getStatusConfig(concern.status);
 
   const getReportUrl = () => {
     if (!concern.medicalReport || !concern.medicalReport.path) return null;
@@ -77,7 +67,7 @@ const ConcernDetailScreen = ({ route, navigation }) => {
     try {
       await Linking.openURL(fileUrl);
     } catch (error) {
-      Alert.alert('Error', 'Failed to open the medical report. Ensure you have a browser or viewer installed.');
+      Alert.alert('Error', 'Failed to open the medical report.');
     }
   };
 
@@ -179,329 +169,467 @@ const ConcernDetailScreen = ({ route, navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.genre}>{concern.genre}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(concern.status) }]}>
-          <Text style={styles.statusText}>
-            {getStatusText(concern.status)}
-          </Text>
-        </View>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Concern Details</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.descriptionHeaderRow}>
-          <Text style={styles.sectionTitleNoMargin}>Description</Text>
-          {isStaff && concern.status === 'pending' && (
-            <TouchableOpacity 
-              style={styles.markProgressBtn} 
-              onPress={markAsReviewing}
-              disabled={submitting}
-            >
-              <Ionicons name="checkmark-circle-outline" size={16} color="#2196f3" />
-              <Text style={styles.markProgressText}>Mark as Reviewing</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.description}>{concern.description}</Text>
-      </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollPadding}>
+        <View style={styles.mainCard}>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.typeText}>{concern.concernType || 'Normal Concern'}</Text>
+              <Text style={styles.genreText}>{concern.genre}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+              <Ionicons name={config.icon} size={14} color={config.color} />
+              <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
+            </View>
+          </View>
 
-      {concern.medicalReport && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Medical Report</Text>
-          
-          {/* Inline Image Preview */}
-          {concern.medicalReport.mimetype && concern.medicalReport.mimetype.startsWith('image/') && (
-            <View style={styles.imagePreviewContainer}>
-              <Image 
-                source={{ uri: getReportUrl() }} 
-                style={styles.imagePreview} 
-                resizeMode="contain"
-              />
+          <View style={styles.divider} />
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              {isStaff && concern.status === 'pending' && (
+                <TouchableOpacity 
+                  style={styles.actionPill} 
+                  onPress={markAsReviewing}
+                  disabled={submitting}
+                >
+                  <Ionicons name="play-outline" size={14} color="#3b82f6" />
+                  <Text style={styles.actionPillText}>Review</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.descriptionText}>{concern.description}</Text>
+          </View>
+
+          {concern.medicalReport && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Medical Report</Text>
+              
+              {concern.medicalReport.mimetype && concern.medicalReport.mimetype.startsWith('image/') && (
+                <View style={styles.imageContainer}>
+                  <Image 
+                    source={{ uri: getReportUrl() }} 
+                    style={styles.reportImage} 
+                    resizeMode="cover"
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.downloadArea} onPress={downloadMedicalReport}>
+                <View style={styles.fileIconWrap}>
+                  <Ionicons 
+                    name={concern.medicalReport.mimetype?.includes('pdf') ? "document-text" : "image"} 
+                    size={20} 
+                    color="#e53935" 
+                  />
+                </View>
+                <View style={styles.fileMeta}>
+                  <Text style={styles.fileName}>
+                    {concern.medicalReport.mimetype?.includes('pdf') ? 'Open PDF Document' : 'View High-Res Image'}
+                  </Text>
+                  <Text style={styles.fileSub}>Tap to open attachment</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+              </TouchableOpacity>
             </View>
           )}
 
-          <TouchableOpacity style={styles.downloadButton} onPress={downloadMedicalReport}>
-            <Ionicons name="document-attach" size={20} color="#fff" />
-            <Text style={styles.downloadButtonText}>
-              {concern.medicalReport.mimetype && concern.medicalReport.mimetype.includes('pdf') 
-                ? 'Open PDF Report' 
-                : 'View Full Image'}
+          <View style={styles.metaBox}>
+            <Ionicons name="time-outline" size={14} color="#94a3b8" />
+            <Text style={styles.metaDate}>
+              Submitted on {new Date(concern.createdAt).toLocaleString(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+              })}
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
-      )}
 
-      {concern.adminReply && !isEditing && (
-        <View style={[styles.section, styles.replySection]}>
-          <View style={styles.replyHeaderRow}>
-            <Text style={styles.sectionTitleNoMargin}>Admin Response</Text>
-            {isStaff && (
-              <View style={styles.replyActions}>
-                <TouchableOpacity onPress={() => { setIsEditing(true); setEditReplyText(concern.adminReply); }} style={styles.iconBtn}>
-                  <Ionicons name="pencil" size={18} color="#0f766e" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={confirmDelete} style={styles.iconBtn}>
-                  <Ionicons name="trash" size={18} color="#dc2626" />
-                </TouchableOpacity>
+        {concern.adminReply && !isEditing && (
+          <View style={styles.replyCard}>
+            <View style={styles.replyHeader}>
+              <View style={styles.replyTitleWrap}>
+                <View style={styles.replyDot} />
+                <Text style={styles.replyTitle}>Official Response</Text>
               </View>
-            )}
+              {isStaff && (
+                <View style={styles.adminActions}>
+                  <TouchableOpacity onPress={() => { setIsEditing(true); setEditReplyText(concern.adminReply); }} style={styles.adminActionBtn}>
+                    <Ionicons name="pencil" size={16} color="#0f766e" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={confirmDelete} style={styles.adminActionBtn}>
+                    <Ionicons name="trash" size={16} color="#dc2626" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+            <View style={styles.replyBubble}>
+              <Text style={styles.replyContent}>{concern.adminReply}</Text>
+              {concern.repliedAt && (
+                <Text style={styles.replyTimestamp}>
+                  Replied at {new Date(concern.repliedAt).toLocaleString(undefined, {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                  })}
+                </Text>
+              )}
+            </View>
           </View>
-          <View style={styles.replyContainer}>
-            <Ionicons name="chatbubble" size={20} color="#4caf50" />
-            <Text style={styles.replyText}>{concern.adminReply}</Text>
-            {concern.repliedAt && (
-              <Text style={styles.replyDate}>
-                {new Date(concern.repliedAt).toLocaleString()}
-              </Text>
-            )}
-          </View>
-        </View>
-      )}
+        )}
 
-      {concern.adminReply && isEditing && (
-        <View style={[styles.section, styles.staffReplySection]}>
-          <View style={styles.replyHeaderRow}>
-            <Text style={styles.sectionTitleNoMargin}>Edit Reply</Text>
-            <TouchableOpacity onPress={() => setIsEditing(false)}>
-              <Text style={{color: '#64748b'}}>Cancel</Text>
+        {isEditing && (
+          <View style={styles.staffActionCard}>
+            <View style={styles.staffHeader}>
+              <Text style={styles.staffTitle}>Edit Response</Text>
+              <TouchableOpacity onPress={() => setIsEditing(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Update your response..."
+              multiline
+              value={editReplyText}
+              onChangeText={setEditReplyText}
+              editable={!submitting}
+            />
+            <TouchableOpacity 
+              style={styles.submitBtn} 
+              onPress={updateReply}
+              disabled={submitting || !editReplyText.trim()}
+            >
+              <LinearGradient colors={['#e53935', '#b71c1c']} style={styles.btnGradient}>
+                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnText}>Update Response</Text>}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-          <TextInput
-            style={styles.replyInput}
-            placeholder="Type your response..."
-            multiline
-            numberOfLines={4}
-            value={editReplyText}
-            onChangeText={setEditReplyText}
-            editable={!submitting}
-          />
-          <TouchableOpacity 
-            style={styles.submitReplyBtn} 
-            onPress={updateReply}
-            disabled={submitting || !editReplyText.trim()}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="save" size={16} color="#fff" />
-                <Text style={styles.submitReplyBtnText}>Update Reply</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
+        )}
 
-      {isStaff && concern.status !== 'resolved' && !concern.adminReply && (
-        <View style={[styles.section, styles.staffReplySection]}>
-          <Text style={styles.sectionTitle}>Write a Reply</Text>
-          <TextInput
-            style={styles.replyInput}
-            placeholder="Type your response to the student..."
-            multiline
-            numberOfLines={4}
-            value={replyText}
-            onChangeText={setReplyText}
-            editable={!submitting}
-          />
-          <TouchableOpacity 
-            style={styles.submitReplyBtn} 
-            onPress={submitReply}
-            disabled={submitting || !replyText.trim()}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="send" size={16} color="#fff" />
-                <Text style={styles.submitReplyBtnText}>Submit Reply</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.metaInfo}>
-        <Text style={styles.metaText}>
-          Submitted: {new Date(concern.createdAt).toLocaleString()}
-        </Text>
-      </View>
-    </ScrollView>
+        {isStaff && concern.status !== 'resolved' && !concern.adminReply && (
+          <View style={styles.staffActionCard}>
+            <Text style={styles.staffTitle}>Submit a Response</Text>
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Type your reply to the student..."
+              multiline
+              value={replyText}
+              onChangeText={setReplyText}
+              editable={!submitting}
+            />
+            <TouchableOpacity 
+              style={styles.submitBtn} 
+              onPress={submitReply}
+              disabled={submitting || !replyText.trim()}
+            >
+              <LinearGradient colors={['#e53935', '#b71c1c']} style={styles.btnGradient}>
+                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnText}>Send Response</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#e53935',
   },
   header: {
-    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: 10,
+  },
+  scrollPadding: {
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingBottom: 40,
+  },
+  mainCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  typeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#e53935',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  genreText: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#1e293b',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 20,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  genre: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  section: {
-    backgroundColor: '#fff',
-    marginTop: 12,
-    padding: 20,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    fontWeight: '800',
+    color: '#334155',
   },
-  sectionTitleNoMargin: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  descriptionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  markProgressBtn: {
+  actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 12,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
   },
-  markProgressText: {
-    color: '#2196f3',
+  actionPillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '800',
+    color: '#3b82f6',
   },
-  description: {
+  descriptionText: {
     fontSize: 14,
-    color: '#666',
+    color: '#475569',
     lineHeight: 22,
+    fontWeight: '500',
   },
-  downloadButton: {
-    backgroundColor: '#2196f3',
+  imageContainer: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#f1f5f9',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  reportImage: {
+    width: '100%',
+    height: '100%',
+  },
+  downloadArea: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  fileIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#fff1f2',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
   },
-  downloadButtonText: {
-    color: '#fff',
+  fileMeta: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  fileName: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  fileSub: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  metaBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  metaDate: {
+    fontSize: 11,
+    color: '#94a3b8',
     fontWeight: '600',
   },
-  replySection: {
-    backgroundColor: '#e8f5e9',
+  replyCard: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+    marginBottom: 20,
   },
-  replyHeaderRow: {
+  replyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  replyActions: {
+  replyTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  replyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16a34a',
+  },
+  replyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#166534',
+  },
+  adminActions: {
     flexDirection: 'row',
     gap: 12,
   },
-  iconBtn: {
-    padding: 4,
+  adminActionBtn: {
+    padding: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  replyContainer: {
-    backgroundColor: '#fff',
+  replyBubble: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: 16,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4caf50',
+    shadowColor: '#16a34a',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  replyText: {
+  replyContent: {
     fontSize: 14,
-    color: '#333',
+    color: '#334155',
     lineHeight: 20,
-    marginTop: 8,
+    fontWeight: '500',
   },
-  replyDate: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 8,
+  replyTimestamp: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 12,
+    fontWeight: '600',
+    textAlign: 'right',
   },
-  metaInfo: {
+  staffActionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  metaText: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
+  staffHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  staffReplySection: {
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+  staffTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 16,
+  },
+  cancelText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '700',
   },
   replyInput: {
     backgroundColor: '#f8fafc',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 12,
+    padding: 14,
     fontSize: 14,
-    color: '#334155',
-    minHeight: 100,
+    color: '#1e293b',
+    minHeight: 120,
     textAlignVertical: 'top',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  submitReplyBtn: {
-    backgroundColor: '#0f766e',
-    flexDirection: 'row',
+  submitBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  btnGradient: {
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 6,
   },
-  submitReplyBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  imagePreviewContainer: {
-    width: '100%',
-    height: 300,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
+  btnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
 

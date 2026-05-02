@@ -236,9 +236,12 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
               </Text>
               <Text style={styles.studentDetail}>ID: {student?.studentId || 'Not available'}</Text>
               <Text style={styles.studentDetail}>Email: {student?.email || 'Not available'}</Text>
-              {student?.age && <Text style={styles.studentDetail}>Age: {student.age}</Text>}
-              {student?.year && <Text style={styles.studentDetail}>Year: {student.year}</Text>}
-              {student?.gpa && <Text style={styles.studentDetail}>GPA: {student.gpa}</Text>}
+              {(currentConcern?.mobileNumber || student?.mobileNumber) && (
+                <Text style={styles.studentDetail}>Mobile: {currentConcern?.mobileNumber || student?.mobileNumber}</Text>
+              )}
+              {(currentConcern?.address || student?.address) && (
+                <Text style={styles.studentDetail}>Address: {currentConcern?.address || student?.address}</Text>
+              )}
             </View>
           </View>
         </View>

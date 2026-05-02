@@ -43,39 +43,20 @@ function StudentConcernStackNavigator() {
   return (
     <StudentConcernStack.Navigator
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#05070a',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: '600',
-        },
-        headerBackTitle: 'Back',
+        headerShown: false,
       }}
     >
       <StudentConcernStack.Screen
         name="SubmitConcern"
         component={StudentConcernScreen}
-        options={{
-          title: 'Submit Concern',
-          headerShown: true,
-        }}
       />
       <StudentConcernStack.Screen
         name="ConcernHistory"
         component={ConcernHistoryScreen}
-        options={{
-          title: 'My Concerns',
-          headerShown: true,
-        }}
       />
       <StudentConcernStack.Screen
         name="ConcernDetail"
         component={ConcernDetailScreen}
-        options={{
-          title: 'Concern Details',
-          headerShown: true,
-        }}
       />
     </StudentConcernStack.Navigator>
   );
@@ -86,39 +67,20 @@ function StudentConcernHistoryStackNavigator() {
     <StudentConcernHistoryStack.Navigator
       initialRouteName="ConcernHistory"
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#05070a',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: '600',
-        },
-        headerBackTitle: 'Back',
+        headerShown: false,
       }}
     >
       <StudentConcernHistoryStack.Screen
         name="ConcernHistory"
         component={ConcernHistoryScreen}
-        options={{
-          title: 'My Concerns',
-          headerShown: true,
-        }}
       />
       <StudentConcernHistoryStack.Screen
         name="SubmitConcern"
         component={StudentConcernScreen}
-        options={{
-          title: 'Submit Concern',
-          headerShown: true,
-        }}
       />
       <StudentConcernHistoryStack.Screen
         name="ConcernDetail"
         component={ConcernDetailScreen}
-        options={{
-          title: 'Concern Details',
-          headerShown: true,
-        }}
       />
     </StudentConcernHistoryStack.Navigator>
   );
@@ -388,11 +350,7 @@ function AuthRootNavigator() {
         name="ConcernDetail" 
         component={ConcernDetailScreen} 
         options={{
-          headerShown: true,
-          title: 'Concern Details',
-          headerStyle: { backgroundColor: '#05070a' },
-          headerTintColor: '#fff',
-          headerBackTitle: 'Back',
+          headerShown: false,
         }}
       />
       <RootStack.Screen 

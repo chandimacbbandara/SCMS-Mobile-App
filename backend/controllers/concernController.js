@@ -107,9 +107,9 @@ exports.submitConcern = async (req, res) => {
       console.log('After upload - Body:', req.body);
       console.log('After upload - File:', req.file);
 
-      const { concernType, genre, description, studentId, age, gpa, year, gender } = req.body;
+      const { concernType, genre, description, studentId, age, mobileNumber, address, gender } = req.body;
 
-      console.log('Parsed data:', { concernType, genre, description, studentId, age, gpa, year, gender });
+      console.log('Parsed data:', { concernType, genre, description, studentId, age, mobileNumber, address, gender });
 
       const normalizedConcernType = (concernType || 'Normal Concern').trim();
       const normalizedGenre = (genre || '').trim();
@@ -188,8 +188,8 @@ exports.submitConcern = async (req, res) => {
         concernType: normalizedConcernType,
         description: trimmedDescription,
         age: age ? parseInt(age) : null,
-        gpa: gpa ? parseFloat(gpa) : null,
-        year: year ? parseInt(year) : null,
+        mobileNumber: mobileNumber || studentExists.mobileNumber,
+        address: address || studentExists.address,
         gender: validGender  // ✅ Use the validated gender
       };
 
