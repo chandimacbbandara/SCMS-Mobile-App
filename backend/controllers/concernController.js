@@ -351,7 +351,7 @@ exports.replyToConcern = async (req, res) => {
         repliedAt: new Date()
       },
       { new: true }
-    );
+    ).populate('studentId', 'firstName lastName email studentId age year gender');
 
     if (!concern) {
       console.log('Concern not found for reply:', concernId);
@@ -401,7 +401,7 @@ exports.updateReply = async (req, res) => {
         status: 'resolved'
       },
       { new: true }
-    );
+    ).populate('studentId', 'firstName lastName email studentId age year gender');
 
     if (!concern) {
       return res.status(404).json({ success: false, message: 'Concern not found' });
@@ -425,7 +425,7 @@ exports.deleteReply = async (req, res) => {
         status: 'pending'
       },
       { new: true }
-    );
+    ).populate('studentId', 'firstName lastName email studentId age year gender');
 
     if (!concern) {
       return res.status(404).json({ success: false, message: 'Concern not found' });
@@ -442,29 +442,48 @@ exports.updateConcernStatus = async (req, res) => {
   try {
     const { concernId } = req.params;
     const { status } = req.body;
-    
-    if (!ALLOWED_STATUSES.includes(status)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid status' 
+
+    // New rule: status is not manually editable.
+    // Only allow "mark as read" (pending -> reviewing).
+    if (status !== 'reviewing') {
+      return res.status(400).json({
+        success: false,
+        message: 'Manual status updates are not allowed',
       });
     }
 
     console.log('Updating concern status:', concernId, 'to:', status);
 
-    const concern = await Concern.findByIdAndUpdate(
-      concernId,
-      { status, updatedAt: Date.now() },
-      { new: true }
+    const concern = await Concern.findById(concernId).populate(
+      'studentId',
+      'firstName lastName email studentId age year gender'
     );
-
     if (!concern) {
       console.log('Concern not found:', concernId);
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Concern not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Concern not found',
       });
     }
+
+    if (concern.status === 'reviewing') {
+      return res.json({
+        success: true,
+        message: 'Already marked as read',
+        data: concern,
+      });
+    }
+
+    if (concern.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending concerns can be marked as read',
+      });
+    }
+
+    concern.status = 'reviewing';
+    concern.updatedAt = Date.now();
+    await concern.save();
 
     res.json({
       success: true,

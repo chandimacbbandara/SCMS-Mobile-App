@@ -48,8 +48,6 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [reply, setReply] = useState(currentConcern?.adminReply || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState(currentConcern?.status || 'pending');
   const [errorMessage, setErrorMessage] = useState('');
 
   const student = currentConcern?.studentId || {};
@@ -90,32 +88,6 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
       setErrorMessage(error.message || 'Failed to save reply');
       Alert.alert('Error', error.message || 'Failed to save reply');
       console.error('Reply error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    setLoading(true);
-    setErrorMessage('');
-
-    try {
-      const response = await apiRequest(`/concerns/status/${currentConcern._id}`, {
-        method: 'PUT',
-        token,
-        body: {
-          status: newStatus,
-        },
-      });
-
-      setCurrentConcern(response.data);
-      setSelectedStatus(newStatus);
-      setShowStatusModal(false);
-      Alert.alert('Success', 'Status updated successfully!');
-    } catch (error) {
-      setErrorMessage(error.message || 'Failed to update status');
-      Alert.alert('Error', error.message || 'Failed to update status');
-      console.error('Status update error:', error);
     } finally {
       setLoading(false);
     }
@@ -217,13 +189,6 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
         <View style={styles.statusBar}>
           <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(currentConcern?.status) }]} />
           <Text style={styles.statusBarText}>{currentConcern?.status?.toUpperCase()}</Text>
-          <TouchableOpacity
-            style={styles.statusChangeBtn}
-            onPress={() => setShowStatusModal(true)}
-          >
-            <Ionicons name="swap-horizontal" size={16} color="#dc2626" />
-            <Text style={styles.statusChangeText}>Change</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.deleteConcernBtn}
             onPress={handleDeleteConcern}
@@ -369,49 +334,6 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
           </View>
         )}
       </ScrollView>
-
-      {/* Status Modal */}
-      <Modal
-        visible={showStatusModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowStatusModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Change Status</Text>
-              <TouchableOpacity onPress={() => setShowStatusModal(false)}>
-                <Ionicons name="close" size={24} color="#1e293b" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalList}>
-              {STATUS_OPTIONS.map((status) => (
-                <TouchableOpacity
-                  key={status.id}
-                  style={[styles.modalItem, selectedStatus === status.id && styles.modalItemActive]}
-                  onPress={() => handleStatusChange(status.id)}
-                  disabled={loading}
-                >
-                  <View
-                    style={[
-                      styles.statusDot,
-                      { backgroundColor: status.color },
-                      selectedStatus === status.id && { borderColor: '#dc2626', borderWidth: 2 }
-                    ]}
-                  />
-                  <Text style={[styles.modalItemText, selectedStatus === status.id && styles.modalItemTextActive]}>
-                    {status.label}
-                  </Text>
-                  {selectedStatus === status.id && (
-                    <Ionicons name="checkmark" size={20} color="#dc2626" style={{ marginLeft: 'auto' }} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -444,20 +366,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#0f172a',
-  },
-  statusChangeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#fee2e2',
-  },
-  statusChangeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#dc2626',
   },
   deleteConcernBtn: {
     flexDirection: 'row',
