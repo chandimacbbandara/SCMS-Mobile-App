@@ -127,7 +127,6 @@ export default function AdminDashboardScreen({ navigation }) {
     ];
   }, [dashboard?.newStudentsThisMonth, dashboard?.studentsWithPhoto, dashboard?.studentsWithoutPhoto, dashboard?.totalStudents]);
 
-  const recentStudents = Array.isArray(dashboard?.recentStudents) ? dashboard.recentStudents : [];
   const adminName = user?.username || user?.email || 'Admin';
   const totalAdmins = Number(dashboard?.totalAdmins || 0);
 
@@ -202,35 +201,6 @@ export default function AdminDashboardScreen({ navigation }) {
                   <Text style={styles.statLabel}>{card.label}</Text>
                 </View>
               ))}
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Latest Student Registrations</Text>
-                <Text style={styles.cardSub}>Live student records from database</Text>
-              </View>
-
-              {recentStudents.length === 0 ? (
-                <View style={styles.emptyWrap}>
-                  <Ionicons name="inbox-outline" size={24} color="#94a3b8" />
-                  <Text style={styles.emptyText}>No student records available.</Text>
-                </View>
-              ) : (
-                <View style={styles.listWrap}>
-                  {recentStudents.map((student, index) => (
-                    <View key={student.id || `${student.email}-${index}`} style={styles.rowItem}>
-                      <View style={[styles.avatar, styles[`avatar${(index % 5) + 1}`]]}>
-                        <Text style={styles.avatarText}>{String(student.firstName || '?').slice(0, 1).toUpperCase()}</Text>
-                      </View>
-                      <View style={styles.rowMeta}>
-                        <Text style={styles.rowName}>{`${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student'}</Text>
-                        <Text style={styles.rowSub}>{student.email || 'No email'}</Text>
-                        <Text style={styles.rowSub}>{student.studentId || 'No student ID'} • {formatDate(student.createdAt)}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
           </>
         )}
@@ -444,97 +414,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#dfe5ef',
-    backgroundColor: '#ffffff',
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ecf0f5',
-    backgroundColor: '#f8fafc',
-  },
-  cardTitle: {
-    color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  cardSub: {
-    marginTop: 2,
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  emptyWrap: {
-    paddingVertical: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    marginTop: 7,
-    color: '#64748b',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  listWrap: {
-    padding: 12,
-    gap: 9,
-  },
-  rowItem: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e4eaf4',
-    backgroundColor: '#fbfcff',
-    padding: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 37,
-    height: 37,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-  avatar1: {
-    backgroundColor: '#fecaca',
-  },
-  avatar2: {
-    backgroundColor: '#bfdbfe',
-  },
-  avatar3: {
-    backgroundColor: '#bbf7d0',
-  },
-  avatar4: {
-    backgroundColor: '#fed7aa',
-  },
-  avatar5: {
-    backgroundColor: '#bae6fd',
-  },
-  avatarText: {
-    color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  rowMeta: {
-    flex: 1,
-  },
-  rowName: {
-    color: '#0f172a',
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 1,
-  },
-  rowSub: {
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '600',
-    lineHeight: 16,
   },
 });
