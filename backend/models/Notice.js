@@ -10,11 +10,6 @@ const noticeSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admin', // Reference to the owner/admin who created it
-    required: true,
-  },
   createdAt: {
     type: Date,
     default: Date.now,

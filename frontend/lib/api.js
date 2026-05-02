@@ -263,6 +263,40 @@ export async function deleteConcern(concernId) {
   });
 }
 
+// ============ NOTICE (BROADCAST) FUNCTIONS ============
+
+export async function getNotices() {
+  return apiRequest('/notices', {
+    method: 'GET',
+  });
+}
+
+export async function createNotice(noticeData) {
+  return apiRequest('/notices', {
+    method: 'POST',
+    body: noticeData,
+  });
+}
+
+export async function updateNotice(id, noticeData) {
+  return apiRequest(`/notices/${id}`, {
+    method: 'PATCH',
+    body: noticeData,
+  });
+}
+
+export async function deleteNotice(id) {
+  return apiRequest(`/notices/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function dismissNotice(id) {
+  return apiRequest(`/notices/${id}/dismiss`, {
+    method: 'POST',
+  });
+}
+
 // ============ NOTIFICATION FUNCTIONS ============
 
 export async function getMyNotifications() {
@@ -324,6 +358,11 @@ export default {
   deleteConcern,
   deleteStudentConcern,
   updateStudentConcern,
+  getNotices,
+  createNotice,
+  updateNotice,
+  deleteNotice,
+  dismissNotice,
   getMyNotifications,
   markNotificationRead,
   markAllNotificationsRead,

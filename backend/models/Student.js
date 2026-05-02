@@ -70,6 +70,10 @@ const studentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    dismissedNotices: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Notice'
+    }],
   },
   {
     timestamps: true,

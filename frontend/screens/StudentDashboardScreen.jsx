@@ -22,6 +22,8 @@ import {
   getMyNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  getNotices,
+  dismissNotice,
 } from '../lib/api';
 
 function getInitials(firstName, lastName, email) {
@@ -157,6 +159,8 @@ export default function StudentDashboardScreen({ navigation }) {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notices, setNotices] = useState([]);
+  const [noticesLoading, setNoticesLoading] = useState(true);
   
   // Animation refs
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -267,27 +271,56 @@ export default function StudentDashboardScreen({ navigation }) {
     [studentId]
   );
 
+  const loadNotices = useCallback(async () => {
+    if (!studentId) {
+      setNotices([]);
+      setNoticesLoading(false);
+      return;
+    }
+
+    setNoticesLoading(true);
+    try {
+      const response = await getNotices();
+      setNotices(response.notices || []);
+    } catch (error) {
+      console.error('Error loading notices:', error);
+    } finally {
+      setNoticesLoading(false);
+    }
+  }, [studentId]);
+
+  const handleDismissNotice = async (id) => {
+    try {
+      await dismissNotice(id);
+      setNotices(prev => prev.filter(n => n._id !== id));
+    } catch (error) {
+      console.error('Error dismissing notice:', error);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshMe(), loadConcernTracking(true), loadNotifications(true)]);
+      await Promise.all([refreshMe(), loadConcernTracking(true), loadNotifications(true), loadNotices()]);
     } catch (error) {
       // No-op: existing data remains visible.
     } finally {
       setRefreshing(false);
     }
-  }, [refreshMe, loadConcernTracking, loadNotifications]);
+  }, [refreshMe, loadConcernTracking, loadNotifications, loadNotices]);
 
   useEffect(() => {
     loadConcernTracking(false);
     loadNotifications(false);
-  }, [loadConcernTracking, loadNotifications]);
+    loadNotices();
+  }, [loadConcernTracking, loadNotifications, loadNotices]);
 
   useFocusEffect(
     useCallback(() => {
       loadConcernTracking(true);
       loadNotifications(true);
-    }, [loadConcernTracking, loadNotifications])
+      loadNotices();
+    }, [loadConcernTracking, loadNotifications, loadNotices])
   );
 
   const displayName = useMemo(() => {
@@ -303,15 +336,28 @@ export default function StudentDashboardScreen({ navigation }) {
 
   const avatarText = getInitials(user?.firstName, user?.lastName, user?.email);
   const studentPhotoUri = resolveAssetUrl(apiBaseUrl, user?.studentIdPhoto);
-  const unreadCount = useMemo(() => {
-    return notifications.filter((n) => !n.isRead).length;
-  }, [notifications]);
 
   const activeConcerns = useMemo(() => {
     return trackingConcerns
       .filter((concern) => ['pending', 'reviewing'].includes(String(concern?.status || '').toLowerCase()))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [trackingConcerns]);
+
+  const displayNotifications = useMemo(() => {
+    const formattedNotices = notices.map(n => ({
+      ...n,
+      isNotice: true,
+      isRead: false, // Treat notices as important/unread items
+    }));
+
+    return [...notifications, ...formattedNotices].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+  }, [notifications, notices]);
+
+  const unreadCount = useMemo(() => {
+    return displayNotifications.filter((n) => !n.isRead).length;
+  }, [displayNotifications]);
 
   if (initialSyncing && !user) {
     return (
@@ -383,6 +429,30 @@ export default function StudentDashboardScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </LinearGradient>
+
+        {notices.length > 0 && (
+          <View style={styles.noticesWrapper}>
+            {notices.map((notice) => (
+              <View key={notice._id} style={styles.noticeBanner}>
+                <View style={styles.noticeContent}>
+                  <View style={styles.noticeIconWrap}>
+                    <Ionicons name="megaphone" size={18} color="#e53935" />
+                  </View>
+                  <View style={styles.noticeTextWrap}>
+                    <Text style={styles.noticeTitleText}>{notice.title}</Text>
+                    <Text style={styles.noticeMessageText}>{notice.message}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.dismissNoticeBtn}
+                    onPress={() => handleDismissNotice(notice._id)}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.panelCard}>
           <View style={styles.panelHeaderRow}>
@@ -569,22 +639,29 @@ export default function StudentDashboardScreen({ navigation }) {
                 <Ionicons name="alert-circle-outline" size={18} color="#b91c1c" />
                 <Text style={styles.modalErrorText}>{notificationsError}</Text>
               </View>
-            ) : notifications.length === 0 ? (
+            ) : displayNotifications.length === 0 ? (
               <View style={styles.modalState}> 
                 <Ionicons name="notifications-off-outline" size={20} color="#94a3b8" />
                 <Text style={styles.modalStateText}>No notifications yet</Text>
               </View>
             ) : (
               <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
-                {notifications.map((item) => (
+                {displayNotifications.map((item) => (
                   <TouchableOpacity
                     key={item._id}
                     style={[
                       styles.notificationItem,
                       !item.isRead && styles.notificationItemUnread,
+                      item.isNotice && styles.noticeItemBorder,
                     ]}
                     activeOpacity={0.9}
                     onPress={async () => {
+                      if (item.isNotice) {
+                        // For notices, we dismiss them
+                        handleDismissNotice(item._id);
+                        return;
+                      }
+
                       if (!item.isRead) {
                         try {
                           await markNotificationRead(item._id);
@@ -605,11 +682,22 @@ export default function StudentDashboardScreen({ navigation }) {
                       }
                     }}
                   >
-                    <View style={styles.notificationIcon}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={18} color="#dc2626" />
+                    <View style={[styles.notificationIcon, item.isNotice && styles.noticeIconBg]}>
+                      <Ionicons 
+                        name={item.isNotice ? "megaphone-outline" : "chatbubble-ellipses-outline"} 
+                        size={18} 
+                        color={item.isNotice ? "#b91c1c" : "#dc2626"} 
+                      />
                     </View>
                     <View style={styles.notificationBody}>
-                      <Text style={styles.notificationTitle}>{item.title}</Text>
+                      <View style={styles.notificationHeaderRow}>
+                        <Text style={styles.notificationTitle}>{item.title}</Text>
+                        {item.isNotice && (
+                          <View style={styles.noticeBadge}>
+                            <Text style={styles.noticeBadgeText}>BROADCAST</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.notificationMessage} numberOfLines={2}>
                         {item.message}
                       </Text>
@@ -664,8 +752,52 @@ const styles = StyleSheet.create({
   scrollWrap: {
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 22,
     gap: 12,
+  },
+  noticesWrapper: {
+    gap: 10,
+    marginBottom: 4,
+  },
+  noticeBanner: {
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  noticeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  noticeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff1f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noticeTextWrap: {
+    flex: 1,
+  },
+  noticeTitleText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  noticeMessageText: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  dismissNoticeBtn: {
+    padding: 4,
   },
   topNavRow: {
     flexDirection: 'row',
@@ -1130,6 +1262,29 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94a3b8',
     fontWeight: '700',
+  },
+  notificationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  noticeBadge: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  noticeBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#b91c1c',
+  },
+  noticeItemBorder: {
+    borderColor: '#fecaca',
+  },
+  noticeIconBg: {
+    backgroundColor: '#fff1f2',
   },
   modalAction: {
     alignItems: 'center',

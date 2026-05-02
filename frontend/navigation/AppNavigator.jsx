@@ -20,6 +20,7 @@ import AdminConcernDetailScreen from '../screens/AdminConcernDetailScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
 import StudentSettingsScreen from '../screens/StudentSettingsScreen';
 import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
+import OwnerBroadcastScreen from '../screens/OwnerBroadcastScreen';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -230,6 +231,15 @@ function getRoleTabs(role) {
       title: 'Workspace',
       activeIcon: 'settings',
       inactiveIcon: 'settings-outline',
+    });
+
+    tabs.push({
+      name: 'OwnerBroadcast',
+      component: OwnerBroadcastScreen,
+      label: 'Broadcast',
+      title: 'Broadcast',
+      activeIcon: 'megaphone',
+      inactiveIcon: 'megaphone-outline',
     });
   }
 
