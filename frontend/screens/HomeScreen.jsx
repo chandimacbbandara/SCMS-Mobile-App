@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -272,8 +273,36 @@ function StepRow({ item, index, isActive, onPress }) {
 }
 
 /* ─────────────────────────────────────────
+   MARQUEE
+ ───────────────────────────────────────── */
+function BroadcastMarquee() {
+  const scrollAnim = useRef(new Animated.Value(width)).current;
+
+  useEffect(() => {
+    const duration = 15000;
+    const runAnimation = () => {
+      scrollAnim.setValue(width);
+      Animated.timing(scrollAnim, {
+        toValue: -width * 1.5,
+        duration: duration,
+        useNativeDriver: true,
+      }).start(() => runAnimation());
+    };
+    runAnimation();
+  }, []);
+
+  return (
+    <View style={styles.marqueeWrap}>
+      <Animated.Text style={[styles.marqueeText, { transform: [{ translateX: scrollAnim }] }]}>
+        📢 Important: Final year project submissions are now open. Check your dashboard for details. | 🚀 New "Live Support" feature coming soon! | 🛡️ Privacy policy updated for 2026.
+      </Animated.Text>
+    </View>
+  );
+}
+
+/* ─────────────────────────────────────────
    MAIN SCREEN
-───────────────────────────────────────── */
+ ───────────────────────────────────────── */
 export default function HomeScreen({ navigation }) {
   const { user, logout, isAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(null);
@@ -296,6 +325,26 @@ export default function HomeScreen({ navigation }) {
   const pressIn = (a) => Animated.spring(a, { toValue: 0.93, useNativeDriver: true }).start();
   const pressOut = (a) => Animated.spring(a, { toValue: 1, useNativeDriver: true }).start();
 
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [50, 120],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [50, 120],
+    outputRange: [-20, 0],
+    extrapolate: 'clamp',
+  });
+
+  const heroScale = scrollY.interpolate({
+    inputRange: [-100, 0, 100],
+    outputRange: [1.1, 1, 0.95],
+    extrapolate: 'clamp',
+  });
+
   useEffect(() => {
     Animated.stagger(120, [
       Animated.parallel([
@@ -315,8 +364,46 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f4f6f9" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces>
+      <StatusBar barStyle="dark-content" backgroundColor="#fffcfc" />
+
+      {/* ── STICKY GLASS HEADER ── */}
+      <Animated.View
+        style={[
+          styles.stickyHeader,
+          {
+            opacity: headerOpacity,
+            transform: [{ translateY: headerTranslateY }],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+          style={styles.stickyHeaderContent}
+        >
+          <View style={styles.stickyBrandRow}>
+            <View style={styles.stickyDot} />
+            <Text style={styles.stickyBrand}>SCMS</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.stickyAction}
+            onPress={() => navigation.navigate(isAuthenticated ? 'StudentDashboard' : 'Login')}
+          >
+            <Text style={styles.stickyActionTxt}>{isAuthenticated ? 'Dashboard' : 'Sign In'}</Text>
+            <Ionicons name="arrow-forward" size={14} color="#fff" />
+          </TouchableOpacity>
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        bounces
+      >
 
         {/* ── TOP BAR ── */}
         <Animated.View style={[styles.topBar, { opacity: topBarO, transform: [{ translateY: topBarY }] }]}>
@@ -355,7 +442,10 @@ export default function HomeScreen({ navigation }) {
         </Animated.View>
 
         {/* ── HERO ── */}
-        <View style={styles.heroSection}>
+        <Animated.View style={[styles.heroSection, { transform: [{ scale: heroScale }] }]}>
+          <View style={styles.heroBgBlur} />
+          <View style={styles.heroBgBlur2} />
+          
           {[40, 90, 150, 200, 260, 310].map((x, i) => (
             <Particle key={i} x={x} delay={i * 400} size={i % 2 === 0 ? 4 : 3} />
           ))}
@@ -412,7 +502,9 @@ export default function HomeScreen({ navigation }) {
               </View>
             )}
           </Animated.View>
-        </View>
+        </Animated.View>
+
+        <BroadcastMarquee />
 
         {/* ── STATS ── */}
         <View style={styles.statsRow}>
@@ -489,7 +581,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.footerCopy}>© AKB Creative Solution</Text>
         </LinearGradient>
 
-      </ScrollView>
+        </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -499,7 +591,63 @@ export default function HomeScreen({ navigation }) {
 ───────────────────────────────────────── */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fffcfc' },
-  scroll: { flexGrow: 1, backgroundColor: '#fffcfc' },
+  scroll: { flexGrow: 1, backgroundColor: '#fffcfc', paddingTop: 10 },
+
+  /* Sticky Header */
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 44 : 10,
+  },
+  stickyHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(229,57,53,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  stickyBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stickyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#e53935' },
+  stickyBrand: { color: '#1f2937', fontSize: 14, fontWeight: '900' },
+  stickyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e53935',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  stickyActionTxt: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+  /* Marquee */
+  marqueeWrap: {
+    backgroundColor: 'rgba(229,57,53,0.05)',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(229,57,53,0.1)',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  marqueeText: {
+    color: '#e53935',
+    fontSize: 12,
+    fontWeight: '700',
+    width: width * 3,
+  },
 
   /* Top bar */
   topBar: {
@@ -559,6 +707,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     position: 'relative',
     overflow: 'hidden',
+  },
+  heroBgBlur: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(229,57,53,0.04)',
+    top: -50,
+    left: -50,
+  },
+  heroBgBlur2: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(229,57,53,0.03)',
+    bottom: 20,
+    right: -40,
   },
 
   /* Hero logo rings */
