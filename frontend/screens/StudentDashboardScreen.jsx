@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest } from '../lib/api';
 
 function getInitials(firstName, lastName, email) {
   const f = String(firstName || '').trim();
@@ -78,11 +77,10 @@ function formatMemberSince(value) {
 }
 
 export default function StudentDashboardScreen({ navigation }) {
-  const { user, token, logout, apiBaseUrl, refreshMe } = useAuth();
+  const { user, logout, apiBaseUrl, refreshMe } = useAuth();
   const [clock, setClock] = useState(getNowParts());
   const [refreshing, setRefreshing] = useState(false);
   const [initialSyncing, setInitialSyncing] = useState(false);
-  const [notices, setNotices] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -99,10 +97,6 @@ export default function StudentDashboardScreen({ navigation }) {
       setInitialSyncing(true);
       try {
         await refreshMe();
-        if (token) {
-          const res = await apiRequest('/notices', { method: 'GET', token });
-          setNotices(res.notices || []);
-        }
       } catch (error) {
         // Keep dashboard usable even if refresh fails.
       } finally {
@@ -123,25 +117,12 @@ export default function StudentDashboardScreen({ navigation }) {
     setRefreshing(true);
     try {
       await refreshMe();
-      if (token) {
-        const res = await apiRequest('/notices', { method: 'GET', token });
-        setNotices(res.notices || []);
-      }
     } catch (error) {
       // No-op: existing data remains visible.
     } finally {
       setRefreshing(false);
     }
-  }, [refreshMe, token]);
-
-  const dismissNotice = async (noticeId) => {
-    setNotices((prev) => prev.filter(n => n._id !== noticeId));
-    try {
-      await apiRequest(`/notices/${noticeId}/dismiss`, { method: 'POST', token });
-    } catch (error) {
-      // Ignore errors for optimistic UI update
-    }
-  };
+  }, [refreshMe]);
 
   const displayName = useMemo(() => {
     const firstName = String(user?.firstName || '').trim();
@@ -343,38 +324,6 @@ export default function StudentDashboardScreen({ navigation }) {
         </View>
 
         <View style={[styles.panelCard, styles.trackingPanel]}>
-          <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>Recent Broadcasts</Text>
-            <Text style={styles.panelSubtitle}>Important notices</Text>
-          </View>
-
-          {notices.length === 0 ? (
-            <View style={styles.emptyStateCard}>
-              <Ionicons name="megaphone-outline" size={28} color="#9aa4b2" />
-              <Text style={styles.emptyStateTitle}>No recent announcements</Text>
-              <Text style={styles.emptyStateText}>
-                When the administration broadcasts an important notice, it will appear here.
-              </Text>
-            </View>
-          ) : (
-            <View style={{ gap: 10 }}>
-              {notices.map((notice) => (
-                <View key={notice._id} style={{ padding: 12, borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, backgroundColor: '#f8fafc' }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#0f172a', marginBottom: 4, flex: 1 }}>{notice.title}</Text>
-                    <TouchableOpacity onPress={() => dismissNotice(notice._id)} style={{ paddingLeft: 10 }}>
-                      <Ionicons name="close-circle" size={20} color="#cbd5e1" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={{ fontSize: 13, color: '#334155', lineHeight: 18 }}>{notice.message}</Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>{formatMemberSince(notice.createdAt)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        <View style={[styles.panelCard, styles.trackingPanel, { marginTop: 10 }]}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>Concern Tracking</Text>
             <Text style={styles.panelSubtitle}>No sample items</Text>

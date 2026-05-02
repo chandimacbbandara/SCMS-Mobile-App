@@ -10,16 +10,22 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import StudentDashboardScreen from '../screens/StudentDashboardScreen';
 import StudentFeedbackScreen from '../screens/StudentFeedbackScreen';
+import StudentConcernScreen from "../screens/StudentConcernScreen";
+import ConcernHistoryScreen from "../screens/ConcernHistoryScreen";
+import ConcernDetailScreen from "../screens/ConcernDetailScreen";
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
-import OwnerNoticesScreen from '../screens/OwnerNoticesScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import AdminConcernDetailScreen from '../screens/AdminConcernDetailScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
 import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
+
 import { useAuth } from '../context/AuthContext';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const StudentConcernStack = createNativeStackNavigator(); // Stack for concern-related screens
+const AdminDashboardStack = createNativeStackNavigator(); // Stack for admin dashboard + concern details
 
 function SplashLoader() {
   return (
@@ -27,6 +33,82 @@ function SplashLoader() {
       <ActivityIndicator size="large" color="#e53935" />
       <Text style={styles.loaderText}>Loading SCMS...</Text>
     </View>
+  );
+}
+
+// Stack Navigator for Student Concern Flow
+function StudentConcernStackNavigator() {
+  return (
+    <StudentConcernStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#05070a',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        headerBackTitle: 'Back',
+      }}
+    >
+      <StudentConcernStack.Screen
+        name="SubmitConcern"
+        component={StudentConcernScreen}
+        options={{
+          title: 'Submit Concern',
+          headerShown: true,
+        }}
+      />
+      <StudentConcernStack.Screen
+        name="ConcernHistory"
+        component={ConcernHistoryScreen}
+        options={{
+          title: 'My Concerns',
+          headerShown: true,
+        }}
+      />
+      <StudentConcernStack.Screen
+        name="ConcernDetail"
+        component={ConcernDetailScreen}
+        options={{
+          title: 'Concern Details',
+          headerShown: true,
+        }}
+      />
+    </StudentConcernStack.Navigator>
+  );
+}
+
+function AdminDashboardStackNavigator() {
+  return (
+    <AdminDashboardStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#05070a',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        headerBackTitle: 'Back',
+      }}
+    >
+      <AdminDashboardStack.Screen
+        name="AdminDashboard"
+        component={AdminDashboardScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <AdminDashboardStack.Screen
+        name="AdminConcernDetail"
+        component={AdminConcernDetailScreen}
+        options={{
+          title: 'Concern Details',
+          headerShown: true,
+        }}
+      />
+    </AdminDashboardStack.Navigator>
   );
 }
 
@@ -59,7 +141,7 @@ function getDashboardConfig(role) {
 
   if (normalizedRole === 'admin') {
     return {
-      DashboardScreen: AdminDashboardScreen,
+      DashboardScreen: AdminDashboardStackNavigator,
       activeIcon: 'shield-checkmark',
       inactiveIcon: 'shield-checkmark-outline',
     };
@@ -112,6 +194,16 @@ function getRoleTabs(role) {
       activeIcon: 'chatbox',
       inactiveIcon: 'chatbox-outline',
     });
+
+    // ✅ Use Stack Navigator instead of direct screen
+    tabs.push({
+      name: 'StudentConcernStack',
+      component: StudentConcernStackNavigator, // This is the stack navigator
+      label: 'Concern',
+      title: 'Concern',
+      activeIcon: 'document-text',
+      inactiveIcon: 'document-text-outline',
+    });
   }
 
   if (normalizedRole === 'owner') {
@@ -122,14 +214,6 @@ function getRoleTabs(role) {
       title: 'Workspace',
       activeIcon: 'settings',
       inactiveIcon: 'settings-outline',
-    });
-    tabs.push({
-      name: 'OwnerNotices',
-      component: OwnerNoticesScreen,
-      label: 'Broadcasts',
-      title: 'Broadcasts',
-      activeIcon: 'megaphone',
-      inactiveIcon: 'megaphone-outline',
     });
   }
 
@@ -211,7 +295,11 @@ function AuthTabsNavigator() {
   const normalizedRole = getNormalizedRole(user?.role);
 
   return (
-    <Tab.Navigator key={`auth-tabs-${normalizedRole}`} initialRouteName="Dashboard" screenOptions={getTabScreenOptions}>
+    <Tab.Navigator
+      key={`auth-tabs-${normalizedRole}`}
+      initialRouteName="Dashboard"
+      screenOptions={getTabScreenOptions}
+    >
       {roleTabs.map((tab) => (
         <Tab.Screen
           key={tab.name}
@@ -242,6 +330,17 @@ function AuthRootNavigator() {
   return (
     <RootStack.Navigator initialRouteName="AuthTabs" screenOptions={rootScreenOptions}>
       <RootStack.Screen name="AuthTabs" component={AuthTabsNavigator} />
+      <RootStack.Screen 
+        name="ConcernDetail" 
+        component={ConcernDetailScreen} 
+        options={{
+          headerShown: true,
+          title: 'Concern Details',
+          headerStyle: { backgroundColor: '#05070a' },
+          headerTintColor: '#fff',
+          headerBackTitle: 'Back',
+        }}
+      />
     </RootStack.Navigator>
   );
 }

@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { NativeModules } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function inferHostFromExpo() {
   const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoClient?.hostUri;
@@ -23,10 +24,10 @@ export function getApiBaseUrl() {
 
   const host = inferHostFromExpo();
   if (host) {
-    return `http://${host}:4000/api`;
+    return `http://${host}:5000/api`; // ✅ PERMANENT PORT 5000
   }
 
-  return 'http://localhost:4000/api';
+  return 'http://localhost:5000/api'; // ✅ PERMANENT PORT 5000
 }
 
 export async function apiRequest(path, options = {}) {
@@ -38,28 +39,239 @@ export async function apiRequest(path, options = {}) {
   } = options;
 
   const headers = {};
+  
+  // Don't set Content-Type for FormData, browser will set it with boundary
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  // Try to get token from params, then from storage
+  let authToken = token;
+  if (!authToken) {
+    try {
+      authToken = await AsyncStorage.getItem('scms_auth_token');
+    } catch (error) {
+      console.error('Failed to get token:', error);
+    }
+  }
+
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
   }
 
   const endpoint = `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
 
-  const response = await fetch(endpoint, {
-    method,
-    headers,
-    body: isFormData ? body : body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const message = data?.message || 'Request failed';
-    throw new Error(message);
+  // Handle FormData properly - don't stringify
+  let requestBody = undefined;
+  if (body) {
+    if (isFormData) {
+      requestBody = body; // FormData goes as-is
+    } else {
+      requestBody = JSON.stringify(body);
+    }
   }
 
-  return data;
+  try {
+    const response = await fetch(endpoint, {
+      method,
+      headers,
+      body: requestBody,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    // Handle token expiration
+    if (response.status === 401) {
+      console.log('Token expired or invalid, clearing storage...');
+      await AsyncStorage.multiRemove(['scms_auth_token', 'scms_auth_user']);
+      throw new Error('Session expired. Please login again.');
+    }
+
+    if (!response.ok) {
+      const message = data?.message || data?.error || 'Request failed';
+      throw new Error(message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('API request error:', error);
+    throw error;
+  }
 }
+
+// ============ CONCERN RELATED API FUNCTIONS ============
+
+// Submit a concern with optional medical report
+export async function submitConcernWithReport(concernData, medicalReportFile) {
+  const formData = new FormData();
+  
+  // Add all text fields
+  formData.append('concernType', concernData.concernType);
+  formData.append('genre', concernData.genre);
+  formData.append('description', concernData.description);
+  formData.append('studentId', concernData.studentId);
+  
+  // Add optional fields if they exist
+  if (concernData.age) formData.append('age', concernData.age.toString());
+  if (concernData.gpa) formData.append('gpa', concernData.gpa.toString());
+  if (concernData.year) formData.append('year', concernData.year.toString());
+  if (concernData.gender) formData.append('gender', concernData.gender);
+  
+  // Add medical report if provided
+  if (medicalReportFile) {
+    formData.append('medicalReport', {
+      uri: medicalReportFile.uri,
+      name: medicalReportFile.name || `medical-report-${Date.now()}.jpg`,
+      type: medicalReportFile.type || 'image/jpeg',
+    });
+  }
+  
+  return apiRequest('/concerns/submit', {
+    method: 'POST',
+    body: formData,
+    isFormData: true,
+  });
+}
+
+// Get all concerns for a specific student
+export async function getStudentConcerns(studentId) {
+  return apiRequest(`/concerns/my-concerns/${studentId}`, {
+    method: 'GET',
+  });
+}
+
+// Get details of a specific concern
+export async function getConcernDetails(concernId) {
+  return apiRequest(`/concerns/my-concerns/detail/${concernId}`, {
+    method: 'GET',
+  });
+}
+
+// ============ REGISTRATION RELATED API FUNCTIONS ============
+
+// Register a new student with photo
+export async function registerStudent(studentData, studentIdPhoto) {
+  const formData = new FormData();
+  
+  // Add all student data
+  Object.keys(studentData).forEach(key => {
+    if (studentData[key] !== null && studentData[key] !== undefined && studentData[key] !== '') {
+      formData.append(key, studentData[key].toString());
+    }
+  });
+  
+  // Add student ID photo if provided
+  if (studentIdPhoto) {
+    formData.append('studentIdPhoto', {
+      uri: studentIdPhoto.uri,
+      name: studentIdPhoto.fileName || `student-id-${Date.now()}.jpg`,
+      type: studentIdPhoto.mimeType || 'image/jpeg',
+    });
+  }
+  
+  return apiRequest('/auth/register', {
+    method: 'POST',
+    body: formData,
+    isFormData: true,
+  });
+}
+
+// ============ PROFILE RELATED API FUNCTIONS ============
+
+// Update student profile (age, gpa, year, gender)
+export async function updateStudentProfile(profileData) {
+  return apiRequest('/students/profile', {
+    method: 'PUT',
+    body: profileData,
+  });
+}
+
+// Get student profile
+export async function getStudentProfile() {
+  return apiRequest('/students/profile', {
+    method: 'GET',
+  });
+}
+
+// ============ ADMIN CONCERN MANAGEMENT FUNCTIONS ============
+
+// Get all concerns (admin only)
+export async function getAllConcerns(status = null) {
+  const endpoint = status ? `/concerns/all?status=${status}` : '/concerns/all';
+  return apiRequest(endpoint, {
+    method: 'GET',
+  });
+}
+
+// Reply to a concern (admin only)
+export async function replyToConcern(concernId, reply) {
+  return apiRequest(`/concerns/reply/${concernId}`, {
+    method: 'POST',
+    body: { reply },
+  });
+}
+
+// Update concern status (admin only)
+export async function updateConcernStatus(concernId, status) {
+  return apiRequest(`/concerns/status/${concernId}`, {
+    method: 'PUT',
+    body: { status },
+  });
+}
+
+// Download medical report (admin only)
+export async function downloadMedicalReport(concernId) {
+  return apiRequest(`/concerns/download/${concernId}`, {
+    method: 'GET',
+  });
+}
+
+// Delete concern (admin only)
+export async function deleteConcern(concernId) {
+  return apiRequest(`/concerns/${concernId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ============ UTILITY FUNCTIONS ============
+
+// Upload a generic file
+export async function uploadFile(file, endpoint = '/upload') {
+  const formData = new FormData();
+  formData.append('file', {
+    uri: file.uri,
+    name: file.name || `upload-${Date.now()}.jpg`,
+    type: file.type || 'image/jpeg',
+  });
+  
+  return apiRequest(endpoint, {
+    method: 'POST',
+    body: formData,
+    isFormData: true,
+  });
+}
+
+// Check server health
+export async function checkHealth() {
+  return apiRequest('/health', {
+    method: 'GET',
+  });
+}
+
+export default {
+  apiRequest,
+  getApiBaseUrl,
+  submitConcernWithReport,
+  getStudentConcerns,
+  getConcernDetails,
+  registerStudent,
+  updateStudentProfile,
+  getStudentProfile,
+  getAllConcerns,
+  replyToConcern,
+  updateConcernStatus,
+  downloadMedicalReport,
+  deleteConcern,
+  uploadFile,
+  checkHealth,
+};

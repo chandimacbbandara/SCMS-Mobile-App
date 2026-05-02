@@ -1,0 +1,41 @@
+SCMS Mobile App - Setup and Run Commands
+Date: 2026-04-19
+
+Prerequisites
+- Node.js and npm installed
+- Expo Go app installed on mobile (for testing on phone)
+
+1) Install backend dependencies
+cd /home/chandima-bandara/Desktop/SCMS-Mobile-App/backend
+npm install
+
+2) Install frontend dependencies
+cd /home/chandima-bandara/Desktop/SCMS-Mobile-App/frontend
+npm install
+
+3) Start backend server (Terminal 1)
+cd /home/chandima-bandara/Desktop/SCMS-Mobile-App/backend
+npm run dev
+
+Expected backend output includes:
+- MongoDB connected
+- Server running on port 5000
+
+4) Start frontend Expo server (Terminal 2)
+cd /home/chandima-bandara/Desktop/SCMS-Mobile-App/frontend
+npm start
+
+Expected frontend output includes:
+- Starting Metro Bundler
+- Metro waiting on exp://...
+
+5) Open app
+- Scan the QR code shown in Terminal 2 using Expo Go
+- Keep both terminals running while testing
+
+Useful commands
+- Stop backend/frontend server: Ctrl + C
+- Run backend without nodemon: npm start
+- Start frontend in tunnel mode: npm run start:tunnel
+- Open Android directly: npm run android
+- Open Web directly: npm run web
