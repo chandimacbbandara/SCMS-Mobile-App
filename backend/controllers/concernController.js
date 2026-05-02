@@ -288,7 +288,7 @@ exports.getConcernById = async (req, res) => {
     const { concernId } = req.params;
     console.log('Fetching concern:', concernId);
     
-    const concern = await Concern.findById(concernId).populate('studentId', 'firstName lastName email studentId');
+    const concern = await Concern.findById(concernId).populate('studentId', 'firstName lastName email studentId studentIdPhoto');
     
     if (!concern) {
       console.log('Concern not found:', concernId);
@@ -336,7 +336,7 @@ exports.getAllConcerns = async (req, res) => {
     console.log('Fetching all concerns with filter:', filter);
     
     const concerns = await Concern.find(filter)
-      .populate('studentId', 'firstName lastName email studentId age year gender')
+      .populate('studentId', 'firstName lastName email studentId age year gender studentIdPhoto')
       .sort({ createdAt: -1 });
     
     console.log(`Found ${concerns.length} concerns`);
@@ -423,7 +423,7 @@ exports.replyToConcern = async (req, res) => {
         repliedAt: new Date()
       },
       { new: true }
-    ).populate('studentId', 'firstName lastName email studentId age year gender');
+    ).populate('studentId', 'firstName lastName email studentId age year gender studentIdPhoto');
 
     if (!concern) {
       console.log('Concern not found for reply:', concernId);
@@ -505,7 +505,7 @@ exports.updateReply = async (req, res) => {
         status: 'resolved'
       },
       { new: true }
-    ).populate('studentId', 'firstName lastName email studentId age year gender');
+    ).populate('studentId', 'firstName lastName email studentId age year gender studentIdPhoto');
 
     if (!concern) {
       return res.status(404).json({ success: false, message: 'Concern not found' });
@@ -560,7 +560,7 @@ exports.deleteReply = async (req, res) => {
         status: 'pending'
       },
       { new: true }
-    ).populate('studentId', 'firstName lastName email studentId age year gender');
+    ).populate('studentId', 'firstName lastName email studentId age year gender studentIdPhoto');
 
     if (!concern) {
       return res.status(404).json({ success: false, message: 'Concern not found' });
@@ -591,7 +591,7 @@ exports.updateConcernStatus = async (req, res) => {
 
     const concern = await Concern.findById(concernId).populate(
       'studentId',
-      'firstName lastName email studentId age year gender'
+      'firstName lastName email studentId age year gender studentIdPhoto'
     );
     if (!concern) {
       console.log('Concern not found:', concernId);

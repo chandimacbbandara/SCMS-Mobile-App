@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -64,7 +65,7 @@ function getStatusColor(status) {
 }
 
 export default function AdminDashboardScreen({ navigation }) {
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, apiBaseUrl } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -400,12 +401,19 @@ export default function AdminDashboardScreen({ navigation }) {
                             <View style={concernsStyles.headerRow}>
                               <View style={concernsStyles.studentInfo}>
                                 <View style={concernsStyles.avatar}>
-                                  <Text style={concernsStyles.avatarText}>
-                                    {`${concern.studentId?.firstName || '?'} ${concern.studentId?.lastName || ''}`
-                                      .trim()
-                                      .charAt(0)
-                                      .toUpperCase()}
-                                  </Text>
+                                  {concern.studentId?.studentIdPhoto ? (
+                                      <Image
+                                          source={{ uri: `${apiBaseUrl}${concern.studentId.studentIdPhoto}` }}
+                                          style={concernsStyles.avatarImage}
+                                      />
+                                  ) : (
+                                      <Text style={concernsStyles.avatarText}>
+                                        {`${concern.studentId?.firstName || '?'} ${concern.studentId?.lastName || ''}`
+                                            .trim()
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                      </Text>
+                                  )}
                                 </View>
                                 <View style={concernsStyles.studentMeta}>
                                   <Text style={concernsStyles.studentName}>
@@ -953,6 +961,12 @@ const concernsStyles = StyleSheet.create({
     backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarText: {
     color: '#ffffff',

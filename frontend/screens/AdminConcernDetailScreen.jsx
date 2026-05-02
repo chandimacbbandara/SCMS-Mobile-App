@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Modal,
+  Image,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
@@ -57,7 +58,7 @@ function getStatusLabel(status) {
 
 export default function AdminConcernDetailScreen({ navigation, route }) {
   const { concern } = route?.params || {};
-  const { token } = useAuth();
+  const { token, apiBaseUrl } = useAuth();
 
   const [currentConcern, setCurrentConcern] = useState(concern);
   const [loading, setLoading] = useState(false);
@@ -218,9 +219,16 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
           <Text style={styles.cardTitle}>Student Information</Text>
           <View style={styles.studentCard}>
             <View style={styles.largeAvatar}>
-              <Text style={styles.largeAvatarText}>
-                {`${student?.firstName || '?'} ${student?.lastName || ''}`.trim().charAt(0).toUpperCase()}
-              </Text>
+              {student?.studentIdPhoto ? (
+                  <Image
+                      source={{ uri: `${apiBaseUrl}${student.studentIdPhoto}` }}
+                      style={styles.avatarImage}
+                  />
+              ) : (
+                  <Text style={styles.largeAvatarText}>
+                    {`${student?.firstName || '?'} ${student?.lastName || ''}`.trim().charAt(0).toUpperCase()}
+                  </Text>
+              )}
             </View>
             <View style={styles.studentDetails}>
               <Text style={styles.studentName}>
@@ -422,6 +430,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   largeAvatarText: {
     color: '#ffffff',

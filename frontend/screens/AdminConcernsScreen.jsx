@@ -10,6 +10,7 @@ import {
   FlatList,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -85,7 +86,7 @@ function getPriorityColor(priority) {
 }
 
 export default function AdminConcernsScreen({ navigation }) {
-  const { token } = useAuth();
+  const { token, apiBaseUrl } = useAuth();
 
   const [selectedGenre, setSelectedGenre] = useState('All Categories');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -296,9 +297,16 @@ export default function AdminConcernsScreen({ navigation }) {
                     <View style={styles.headerRow}>
                       <View style={styles.studentInfo}>
                         <View style={styles.avatar}>
-                          <Text style={styles.avatarText}>
-                            {`${concern.studentId?.firstName || '?'} ${concern.studentId?.lastName || ''}`.trim().charAt(0).toUpperCase()}
-                          </Text>
+                          {concern.studentId?.studentIdPhoto ? (
+                              <Image
+                                  source={{ uri: `${apiBaseUrl}${concern.studentId.studentIdPhoto}` }}
+                                  style={styles.avatarImage}
+                              />
+                          ) : (
+                              <Text style={styles.avatarText}>
+                                {`${concern.studentId?.firstName || '?'} ${concern.studentId?.lastName || ''}`.trim().charAt(0).toUpperCase()}
+                              </Text>
+                          )}
                         </View>
                         <View style={styles.studentMeta}>
                           <Text style={styles.studentName}>
@@ -567,6 +575,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarText: {
     color: '#ffffff',
