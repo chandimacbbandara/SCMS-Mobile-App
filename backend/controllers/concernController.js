@@ -390,6 +390,137 @@ exports.deleteConcern = async (req, res) => {
   }
 };
 
+// Delete own pending concern (student)
+exports.studentDeleteConcern = async (req, res) => {
+  try {
+    const { concernId } = req.params;
+    const studentId = req.user._id;
+
+    const concern = await Concern.findById(concernId);
+
+    if (!concern) {
+      return res.status(404).json({
+        success: false,
+        message: 'Concern not found',
+      });
+    }
+
+    // Verify ownership
+    if (concern.studentId.toString() !== studentId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to delete this concern',
+      });
+    }
+
+    // Verify status is pending
+    if (concern.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending concerns can be deleted',
+      });
+    }
+
+    removeFileIfExists(concern.medicalReport?.path);
+    await Concern.findByIdAndDelete(concernId);
+
+    res.json({
+      success: true,
+      message: 'Concern deleted successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message,
+    });
+  }
+};
+
+// Update own pending concern (student)
+exports.studentUpdateConcern = async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+
+    try {
+      const { concernId } = req.params;
+      const studentId = req.user._id;
+      const { genre, description, concernType } = req.body;
+
+      const concern = await Concern.findById(concernId);
+
+      if (!concern) {
+        return res.status(404).json({
+          success: false,
+          message: 'Concern not found',
+        });
+      }
+
+      // Verify ownership
+      if (concern.studentId.toString() !== studentId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not authorized to update this concern',
+        });
+      }
+
+      // Verify status is pending
+      if (concern.status !== 'pending') {
+        return res.status(400).json({
+          success: false,
+          message: 'Only pending concerns can be updated',
+        });
+      }
+
+      // Validate inputs if provided
+      if (genre) concern.genre = genre.trim();
+      if (description) {
+        if (description.trim().length < 10) {
+          return res.status(400).json({
+            success: false,
+            message: 'Description must be at least 10 characters',
+          });
+        }
+        concern.description = description.trim();
+      }
+      if (concernType) {
+          if (!ALLOWED_CONCERN_TYPES.includes(concernType)) {
+              return res.status(400).json({ success: false, message: 'Invalid concern type' });
+          }
+          concern.concernType = concernType;
+      }
+
+      // Handle file update
+      if (req.file) {
+        // Remove old file if it exists
+        removeFileIfExists(concern.medicalReport?.path);
+        
+        concern.medicalReport = {
+          filename: req.file.filename,
+          path: req.file.path,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        };
+      }
+
+      concern.updatedAt = Date.now();
+      await concern.save();
+
+      res.json({
+        success: true,
+        message: 'Concern updated successfully',
+        data: concern
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error: ' + error.message,
+      });
+    }
+  });
+};
+
 // Reply to concern (admin)
 exports.replyToConcern = async (req, res) => {
   try {

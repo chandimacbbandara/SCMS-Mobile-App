@@ -147,6 +147,36 @@ export async function getConcernDetails(concernId) {
   });
 }
 
+// Delete a student's own pending concern
+export async function deleteStudentConcern(concernId) {
+  return apiRequest(`/concerns/my-concerns/${concernId}`, {
+    method: 'DELETE',
+  });
+}
+
+// Update a student's own pending concern
+export async function updateStudentConcern(concernId, concernData, medicalReportFile) {
+  const formData = new FormData();
+  
+  if (concernData.concernType) formData.append('concernType', concernData.concernType);
+  if (concernData.genre) formData.append('genre', concernData.genre);
+  if (concernData.description) formData.append('description', concernData.description);
+  
+  if (medicalReportFile) {
+    formData.append('medicalReport', {
+      uri: medicalReportFile.uri,
+      name: medicalReportFile.name || `medical-report-${Date.now()}.jpg`,
+      type: medicalReportFile.type || 'image/jpeg',
+    });
+  }
+  
+  return apiRequest(`/concerns/my-concerns/${concernId}`, {
+    method: 'PUT',
+    body: formData,
+    isFormData: true,
+  });
+}
+
 // ============ REGISTRATION RELATED API FUNCTIONS ============
 
 // Register a new student with photo
@@ -292,6 +322,8 @@ export default {
   updateConcernStatus,
   downloadMedicalReport,
   deleteConcern,
+  deleteStudentConcern,
+  updateStudentConcern,
   getMyNotifications,
   markNotificationRead,
   markAllNotificationsRead,

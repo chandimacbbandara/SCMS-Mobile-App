@@ -31,7 +31,7 @@ const concernSchema = new mongoose.Schema({
   address: String,
   gender: {
     type: String,
-    enum: ['M', 'F'],
+    enum: ['M', 'F', 'Prefer not to say'],
   },
   status: {
     type: String,

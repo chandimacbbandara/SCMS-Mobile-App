@@ -8,13 +8,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { getStudentConcerns } from '../lib/api';
+import { getStudentConcerns, deleteStudentConcern } from '../lib/api';
 
 const ConcernHistoryScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -48,6 +49,33 @@ const ConcernHistoryScreen = ({ navigation }) => {
       setRefreshing(false);
     }
   }, [user?.id, user?._id]);
+  
+  const handleDelete = async (concernId) => {
+    Alert.alert(
+      'Delete Concern',
+      'Are you sure you want to delete this concern?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await deleteStudentConcern(concernId);
+              if (response.success) {
+                Alert.alert('Success', 'Concern deleted successfully');
+                loadConcerns(true);
+              } else {
+                Alert.alert('Error', response.message || 'Failed to delete concern');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.message || 'Failed to delete concern');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   useEffect(() => {
     loadConcerns(false);
@@ -122,9 +150,35 @@ const ConcernHistoryScreen = ({ navigation }) => {
               })}
             </Text>
           </View>
-          <View style={styles.viewDetail}>
-            <Text style={styles.detailText}>View Details</Text>
-            <Ionicons name="arrow-forward" size={14} color="#e53935" />
+          
+          <View style={styles.footerActions}>
+            {item.status === 'pending' && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={styles.editBtn} 
+                  onPress={() => navigation.navigate('SubmitConcern', { concern: item })}
+                >
+                  <Ionicons name="pencil" size={12} color="#3b82f6" />
+                  <Text style={styles.editBtnText}>Update</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.deleteBtn} 
+                  onPress={() => handleDelete(item._id || item.id)}
+                >
+                  <Ionicons name="trash-outline" size={12} color="#dc2626" />
+                  <Text style={styles.deleteBtnText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity 
+              style={styles.viewDetail}
+              onPress={() => navigation.navigate('ConcernDetail', { concern: item })}
+            >
+              <Text style={styles.detailText}>View Details</Text>
+              <Ionicons name="arrow-forward" size={14} color="#e53935" />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -387,6 +441,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#e53935',
     fontWeight: '800',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 6,
+    marginRight: 4,
+  },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  editBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#3b82f6',
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff1f2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+  },
+  deleteBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#dc2626',
   },
   centerContainer: {
     flex: 1,

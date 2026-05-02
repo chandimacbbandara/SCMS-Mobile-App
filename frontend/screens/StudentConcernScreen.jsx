@@ -18,16 +18,18 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { submitConcernWithReport } from '../lib/api';
+import { submitConcernWithReport, updateStudentConcern } from '../lib/api';
 
-const StudentConcernScreen = ({ navigation }) => {
+const StudentConcernScreen = ({ navigation, route }) => {
   const { user, apiBaseUrl } = useAuth();
-  const [concernType, setConcernType] = useState('Normal Concern');
-  const [genre, setGenre] = useState('Academic Support and Resources');
-  const [description, setDescription] = useState('');
+  const editConcern = route.params?.concern;
+  
+  const [concernType, setConcernType] = useState(editConcern?.concernType || 'Normal Concern');
+  const [genre, setGenre] = useState(editConcern?.genre || 'Academic Support and Resources');
+  const [description, setDescription] = useState(editConcern?.description || '');
   const [medicalReport, setMedicalReport] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showMedicalInfo, setShowMedicalInfo] = useState(false);
+  const [showMedicalInfo, setShowMedicalInfo] = useState(editConcern?.genre === 'Medical Concern');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const genres = [
@@ -171,12 +173,19 @@ const StudentConcernScreen = ({ navigation }) => {
         gender: user.gender,
       };
 
-      const response = await submitConcernWithReport(concernData, medicalReport);
+      let response;
+      if (editConcern) {
+        response = await updateStudentConcern(editConcern._id || editConcern.id, concernData, medicalReport);
+      } else {
+        response = await submitConcernWithReport(concernData, medicalReport);
+      }
 
-      if (response.success) {
+      if (response.success || response.status === 'ok') {
         Alert.alert(
-          'Submission Successful',
-          'Your concern has been submitted and our team will review it shortly.',
+          editConcern ? 'Update Successful' : 'Submission Successful',
+          editConcern 
+            ? 'Your concern has been updated successfully.' 
+            : 'Your concern has been submitted and our team will review it shortly.',
           [
             {
               text: 'OK',
@@ -187,7 +196,7 @@ const StudentConcernScreen = ({ navigation }) => {
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'Failed to submit concern');
+        Alert.alert('Error', response.message || 'Failed to process concern');
       }
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to submit concern. Please try again.');
@@ -206,7 +215,7 @@ const StudentConcernScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Submit Concern</Text>
+          <Text style={styles.headerTitle}>{editConcern ? 'Update Concern' : 'Submit Concern'}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -381,8 +390,8 @@ const StudentConcernScreen = ({ navigation }) => {
                   <ActivityIndicator color="#ffffff" size="small" />
                 ) : (
                   <>
-                    <Ionicons name="paper-plane" size={20} color="#ffffff" />
-                    <Text style={styles.submitBtnText}>Submit Concern</Text>
+                    <Ionicons name={editConcern ? "save-outline" : "paper-plane"} size={20} color="#ffffff" />
+                    <Text style={styles.submitBtnText}>{editConcern ? 'Update Concern' : 'Submit Concern'}</Text>
                   </>
                 )}
               </LinearGradient>

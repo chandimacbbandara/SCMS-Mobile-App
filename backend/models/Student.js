@@ -51,7 +51,7 @@ const studentSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ['M', 'F'],
+      enum: ['M', 'F', 'Prefer not to say'],
     },
     // Optional: Track concerns submitted by student
     concerns: [{
