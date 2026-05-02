@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
@@ -39,7 +39,6 @@ export default function OwnerBroadcastScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // CRUD State
   const [isEditing, setIsEditing] = useState(false);
   const [currentNoticeId, setCurrentNoticeId] = useState(null);
   const [title, setTitle] = useState('');
@@ -49,7 +48,6 @@ export default function OwnerBroadcastScreen({ navigation }) {
   const loadNotices = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
-
     try {
       const response = await getNotices();
       setNotices(response.notices || []);
@@ -65,34 +63,26 @@ export default function OwnerBroadcastScreen({ navigation }) {
     loadNotices();
   }, [loadNotices]);
 
-  const validate = () => {
-    if (!title.trim()) {
-      Alert.alert('Validation Error', 'Please enter a title for the broadcast.');
-      return false;
-    }
-    if (!message.trim()) {
-      Alert.alert('Validation Error', 'Please enter a message for the broadcast.');
-      return false;
-    }
-    return true;
-  };
+  const [logoutScale] = useState(new Animated.Value(1));
+  const handleLogoutPressIn = () => Animated.spring(logoutScale, { toValue: 0.9, useNativeDriver: true }).start();
+  const handleLogoutPressOut = () => Animated.spring(logoutScale, { toValue: 1, useNativeDriver: true }).start();
 
   const handleSubmit = async () => {
-    if (!validate()) return;
-
+    if (!title.trim() || !message.trim()) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
     setSubmitting(true);
     try {
       if (isEditing) {
         await updateNotice(currentNoticeId, { title: title.trim(), message: message.trim() });
-        Alert.alert('Success', 'Broadcast updated successfully');
       } else {
         await createNotice({ title: title.trim(), message: message.trim() });
-        Alert.alert('Success', 'Broadcast sent to all students');
       }
       resetForm();
       loadNotices();
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to process broadcast');
+      Alert.alert('Error', error.message);
     } finally {
       setSubmitting(false);
     }
@@ -103,30 +93,15 @@ export default function OwnerBroadcastScreen({ navigation }) {
     setCurrentNoticeId(notice._id);
     setTitle(notice.title);
     setMessage(notice.message);
-    // Scroll to top or just focus? In this UI, form is at the top or in a modal?
-    // Let's put the form in an expandable section or always at the top.
   };
 
   const handleDelete = (id) => {
-    Alert.alert(
-      'Delete Broadcast',
-      'Are you sure you want to delete this broadcast? It will no longer be visible to students.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: async () => {
-            try {
-              await deleteNotice(id);
-              loadNotices();
-            } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to delete broadcast');
-            }
-          }
-        }
-      ]
-    );
+    Alert.alert('Delete Broadcast', 'Remove this notice?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await deleteNotice(id); loadNotices(); } catch (e) { Alert.alert('Error', e.message); }
+      }}
+    ]);
   };
 
   const resetForm = () => {
@@ -136,133 +111,106 @@ export default function OwnerBroadcastScreen({ navigation }) {
     setMessage('');
   };
 
-  const renderNoticeItem = ({ item }) => (
-    <View style={styles.noticeCard}>
-      <View style={styles.noticeHeader}>
-        <View style={styles.noticeIconWrap}>
-          <Ionicons name="megaphone-outline" size={20} color="#b91c1c" />
-        </View>
-        <View style={styles.noticeMeta}>
-          <Text style={styles.noticeTitle}>{item.title}</Text>
-          <Text style={styles.noticeDate}>{formatDateTime(item.createdAt)}</Text>
-        </View>
-      </View>
-      <Text style={styles.noticeMessage}>{item.message}</Text>
-      <View style={styles.noticeActions}>
-        <TouchableOpacity style={styles.editBtn} onPress={() => handleEdit(item)}>
-          <Ionicons name="create-outline" size={16} color="#0f172a" />
-          <Text style={styles.editBtnText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item._id)}>
-          <Ionicons name="trash-outline" size={16} color="#b91c1c" />
-          <Text style={styles.deleteBtnText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notification Broadcast</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadNotices(true)} tintColor="#b91c1c" />
-          }
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollWrap}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadNotices(true)} tintColor="#ffffff" />}
         >
+          {/* ── Premium Header ── */}
           <LinearGradient
-            colors={['#0f172a', '#1b2c42', '#7f1d1d']}
-            style={styles.heroCard}
+            colors={['#1e293b', '#0f172a', '#7f1d1d']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
+            style={styles.headerHero}
           >
-            <View style={styles.heroBadge}>
-              <Ionicons name="radio-outline" size={12} color="#ffd1d8" />
-              <Text style={styles.heroBadgeText}>Broadcast Center</Text>
-            </View>
-            <Text style={styles.heroTitle}>{isEditing ? 'Update Broadcast' : 'New Broadcast'}</Text>
-            <Text style={styles.heroSub}>
-              Send important updates, news, or alerts to all students instantly.
-            </Text>
-            
-            <View style={styles.formCard}>
-              <Text style={styles.label}>Broadcast Title</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Holiday Notice"
-                placeholderTextColor="#94a3b8"
-                value={title}
-                onChangeText={setTitle}
-              />
-              
-              <Text style={[styles.label, { marginTop: 15 }]}>Message Body</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Type your message here..."
-                placeholderTextColor="#94a3b8"
-                value={message}
-                onChangeText={setMessage}
-                multiline
-                numberOfLines={4}
-              />
-
-              <View style={styles.formActions}>
+            <View style={styles.headerTop}>
+              <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                <Ionicons name="chevron-back" size={20} color="#ffffff" />
+              </TouchableOpacity>
+              <Animated.View style={{ transform: [{ scale: logoutScale }] }}>
                 <TouchableOpacity 
-                  style={[styles.submitBtn, submitting && styles.btnDisabled]} 
-                  onPress={handleSubmit}
-                  disabled={submitting}
+                  style={styles.logoutBtn} 
+                  onPress={logout} 
+                  onPressIn={handleLogoutPressIn}
+                  onPressOut={handleLogoutPressOut}
+                  activeOpacity={1}
                 >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
+                  <Ionicons name="log-out-outline" size={18} color="#ffffff" />
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+
+            <View style={styles.headerContent}>
+              <View style={styles.badge}>
+                <Ionicons name="megaphone" size={12} color="#fca5a5" />
+                <Text style={styles.badgeText}>Broadcast Center</Text>
+              </View>
+              <Text style={styles.headerTitle}>{isEditing ? 'Update Notice' : 'New Broadcast'}</Text>
+              <Text style={styles.headerSub}>Instantly notify all students with important updates.</Text>
+            </View>
+          </LinearGradient>
+
+          <View style={styles.body}>
+            <View style={styles.card}>
+              <Text style={styles.inputLabel}>Message Title</Text>
+              <TextInput value={title} onChangeText={setTitle} placeholder="e.g. System Maintenance" style={styles.input} />
+              
+              <Text style={[styles.inputLabel, { marginTop: 16 }]}>Broadcast Content</Text>
+              <TextInput value={message} onChangeText={setMessage} placeholder="Type your announcement..." style={[styles.input, styles.textArea]} multiline />
+              
+              <View style={styles.formActions}>
+                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={submitting}>
+                  {submitting ? <ActivityIndicator size="small" color="#ffffff" /> : (
                     <>
                       <Ionicons name={isEditing ? "save-outline" : "send-outline"} size={18} color="#ffffff" />
-                      <Text style={styles.submitBtnText}>{isEditing ? 'Update Broadcast' : 'Send Broadcast'}</Text>
+                      <Text style={styles.submitBtnText}>{isEditing ? 'Update' : 'Send Now'}</Text>
                     </>
                   )}
                 </TouchableOpacity>
-                
                 {isEditing && (
                   <TouchableOpacity style={styles.cancelBtn} onPress={resetForm}>
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                    <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
                 )}
               </View>
             </View>
-          </LinearGradient>
 
-          <View style={styles.historySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Broadcast History</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{notices.length}</Text>
-              </View>
+              <Text style={styles.sectionTitle}>Sent History</Text>
+              <View style={styles.countBadge}><Text style={styles.countText}>{notices.length}</Text></View>
             </View>
 
             {loading && !refreshing ? (
-              <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#b91c1c" />
-              </View>
+              <ActivityIndicator size="large" color="#dc2626" style={{ marginTop: 40 }} />
             ) : notices.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="document-text-outline" size={48} color="#cbd5e1" />
-                <Text style={styles.emptyText}>No broadcasts sent yet.</Text>
+              <View style={styles.emptyWrap}>
+                <Ionicons name="mail-unread-outline" size={48} color="#cbd5e1" />
+                <Text style={styles.emptyText}>No broadcasts sent yet</Text>
               </View>
             ) : (
-              notices.map((item) => (
-                <View key={item._id} style={{ marginBottom: 12 }}>
-                  {renderNoticeItem({ item })}
+              notices.map(item => (
+                <View key={item._id} style={styles.noticeCard}>
+                  <View style={styles.noticeTop}>
+                    <View style={styles.iconBox}><Ionicons name="megaphone-outline" size={20} color="#dc2626" /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.noticeTitle}>{item.title}</Text>
+                      <Text style={styles.noticeDate}>{formatDateTime(item.createdAt)}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.noticeBody}>{item.message}</Text>
+                  <View style={styles.noticeFooter}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
+                      <Ionicons name="create-outline" size={16} color="#64748b" />
+                      <Text style={styles.actionText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item._id)}>
+                      <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                      <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
@@ -274,247 +222,40 @@ export default function OwnerBroadcastScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#b91c1c',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  scrollContent: {
-    backgroundColor: '#f8fafc',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    minHeight: '100%',
-    paddingBottom: 40,
-  },
-  heroCard: {
-    margin: 16,
-    borderRadius: 24,
-    padding: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-  },
-  heroBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  heroBadgeText: {
-    color: '#ffd1d8',
-    fontSize: 10,
-    fontWeight: '800',
-    marginLeft: 6,
-    textTransform: 'uppercase',
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  heroSub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    lineHeight: 18,
-    marginBottom: 20,
-  },
-  formCard: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  formActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-    gap: 12,
-  },
-  submitBtn: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  submitBtnText: {
-    color: '#7f1d1d',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  cancelBtnText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  historySection: {
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginLeft: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1e293b',
-  },
-  badge: {
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  badgeText: {
-    color: '#b91c1c',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  noticeCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  noticeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  noticeIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fff1f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  noticeMeta: {
-    flex: 1,
-  },
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1e293b',
-    marginBottom: 2,
-  },
-  noticeDate: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '600',
-  },
-  noticeMessage: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  noticeActions: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    paddingTop: 12,
-    gap: 16,
-  },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  editBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  deleteBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#b91c1c',
-  },
-  centerContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    padding: 60,
-    alignItems: 'center',
-  },
-  emptyText: {
-    marginTop: 12,
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+  scrollWrap: { paddingBottom: 30 },
+  headerHero: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, marginBottom: 10 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  headerContent: { },
+  badge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(220,38,38,0.2)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, marginBottom: 10 },
+  badgeText: { color: '#fca5a5', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginLeft: 6 },
+  headerTitle: { color: '#ffffff', fontSize: 26, fontWeight: '900' },
+  headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', marginTop: 4 },
+  body: { paddingHorizontal: 16, marginTop: -20 },
+  card: { backgroundColor: '#ffffff', borderRadius: 24, padding: 20, shadowColor: '#000', shadowOpacity: 0.05, elevation: 3, marginBottom: 24 },
+  inputLabel: { fontSize: 12, fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: 8 },
+  input: { backgroundColor: '#f1f5f9', borderRadius: 14, padding: 14, fontSize: 14, fontWeight: '600', color: '#0f172a' },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  formActions: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 24 },
+  submitBtn: { flex: 1, backgroundColor: '#dc2626', height: 52, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  submitBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
+  cancelBtn: { padding: 12 },
+  cancelText: { color: '#64748b', fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, paddingHorizontal: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
+  countBadge: { backgroundColor: '#fee2e2', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  countText: { color: '#dc2626', fontSize: 11, fontWeight: '800' },
+  noticeCard: { backgroundColor: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.03, elevation: 1 },
+  noticeTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center' },
+  noticeTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
+  noticeDate: { fontSize: 11, color: '#94a3b8', fontWeight: '600', marginTop: 2 },
+  noticeBody: { fontSize: 14, color: '#475569', lineHeight: 20, marginBottom: 16 },
+  noticeFooter: { flexDirection: 'row', gap: 20, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
+  emptyWrap: { alignItems: 'center', paddingVertical: 60 },
+  emptyText: { marginTop: 12, fontSize: 14, fontWeight: '700', color: '#94a3b8' },
 });

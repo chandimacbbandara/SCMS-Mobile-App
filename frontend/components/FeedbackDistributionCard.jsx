@@ -3,42 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 function normalizeDistribution(distribution) {
-  const normalized = {
-    1: 0,
-    2: 0,
-    3: 0,
-    4: 0,
-    5: 0,
-  };
-
-  if (!distribution || typeof distribution !== 'object') {
-    return normalized;
-  }
-
+  const normalized = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  if (!distribution || typeof distribution !== 'object') return normalized;
   Object.keys(normalized).forEach((key) => {
     const value = Number(distribution[key] || distribution[Number(key)] || 0);
     normalized[key] = Number.isFinite(value) ? Math.max(0, value) : 0;
   });
-
   return normalized;
-}
-
-function formatAverage(averageRating) {
-  const value = Number(averageRating || 0);
-  if (!Number.isFinite(value) || value <= 0) {
-    return '0.0';
-  }
-
-  return value.toFixed(1);
-}
-
-function formatCount(totalRatings) {
-  const value = Number(totalRatings || 0);
-  if (!Number.isFinite(value) || value <= 0) {
-    return '0';
-  }
-
-  return Math.round(value).toLocaleString();
 }
 
 export default function FeedbackDistributionCard({
@@ -59,35 +30,27 @@ export default function FeedbackDistributionCard({
 
       <View style={styles.contentRow}>
         <View style={styles.averageBlock}>
-          <Text style={styles.averageValue}>{formatAverage(safeAverage)}</Text>
-
+          <Text style={styles.averageValue}>{safeAverage.toFixed(1)}</Text>
           <View style={styles.starRow}>
             {[1, 2, 3, 4, 5].map((step) => {
               let iconName = 'star-outline';
-              if (safeAverage >= step) {
-                iconName = 'star';
-              } else if (safeAverage >= step - 0.5) {
-                iconName = 'star-half';
-              }
-
+              if (safeAverage >= step) iconName = 'star';
+              else if (safeAverage >= step - 0.5) iconName = 'star-half';
               return <Ionicons key={step} name={iconName} size={15} color="#f59e0b" />;
             })}
           </View>
-
-          <Text style={styles.totalText}>{formatCount(safeTotalRatings)} ratings</Text>
+          <Text style={styles.totalText}>{safeTotalRatings.toLocaleString()} ratings</Text>
         </View>
 
         <View style={styles.distributionWrap}>
           {[5, 4, 3, 2, 1].map((score) => {
             const count = Number(safeDistribution[String(score)] || 0);
             const ratio = safeTotalRatings > 0 ? (count / safeTotalRatings) : 0;
-            const widthPercent = `${Math.max(0, Math.min(100, ratio * 100))}%`;
-
             return (
               <View key={score} style={styles.distributionRow}>
                 <Text style={styles.scoreLabel}>{score}</Text>
                 <View style={styles.track}>
-                  <View style={[styles.fill, { width: widthPercent }]} />
+                  <View style={[styles.fill, { width: `${ratio * 100}%` }]} />
                 </View>
                 <Text style={styles.scoreCount}>{count}</Text>
               </View>
@@ -100,86 +63,18 @@ export default function FeedbackDistributionCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#dbe5ef',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    marginBottom: 10,
-  },
-  title: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: '#64748b',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  contentRow: {
-    marginTop: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  averageBlock: {
-    width: 106,
-    alignItems: 'center',
-  },
-  averageValue: {
-    color: '#0f172a',
-    fontSize: 48,
-    lineHeight: 52,
-    fontWeight: '900',
-  },
-  starRow: {
-    marginTop: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1,
-  },
-  totalText: {
-    marginTop: 3,
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  distributionWrap: {
-    flex: 1,
-    gap: 6,
-  },
-  distributionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  scoreLabel: {
-    width: 10,
-    color: '#1f2937',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  track: {
-    flex: 1,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#e53935',
-  },
-  scoreCount: {
-    minWidth: 28,
-    textAlign: 'right',
-    color: '#475569',
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  card: { backgroundColor: '#ffffff', borderRadius: 24, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.05, elevation: 3 },
+  title: { color: '#0f172a', fontSize: 18, fontWeight: '900' },
+  subtitle: { marginTop: 2, color: '#64748b', fontSize: 12, fontWeight: '600' },
+  contentRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 20 },
+  averageBlock: { width: 110, alignItems: 'center' },
+  averageValue: { color: '#0f172a', fontSize: 52, fontWeight: '900' },
+  starRow: { marginTop: 4, flexDirection: 'row', gap: 2 },
+  totalText: { marginTop: 4, color: '#64748b', fontSize: 11, fontWeight: '800' },
+  distributionWrap: { flex: 1, gap: 8 },
+  distributionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  scoreLabel: { width: 12, color: '#475569', fontSize: 11, fontWeight: '800' },
+  track: { flex: 1, height: 10, borderRadius: 99, backgroundColor: '#f1f5f9', overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 99, backgroundColor: '#dc2626' },
+  scoreCount: { minWidth: 28, textAlign: 'right', color: '#64748b', fontSize: 11, fontWeight: '700' },
 });
