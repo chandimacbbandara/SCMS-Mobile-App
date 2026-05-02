@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Modal,
+  Image,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
@@ -55,9 +56,26 @@ function getStatusLabel(status) {
   }
 }
 
+function resolveAssetUrl(apiBaseUrl, pathValue) {
+  if (!pathValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue;
+  }
+
+  const base = String(apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) {
+    return pathValue;
+  }
+
+  return `${base}${String(pathValue).startsWith('/') ? '' : '/'}${pathValue}`;
+}
+
 export default function AdminConcernDetailScreen({ navigation, route }) {
   const { concern } = route?.params || {};
-  const { token } = useAuth();
+  const { token, apiBaseUrl } = useAuth();
 
   const [currentConcern, setCurrentConcern] = useState(concern);
   const [loading, setLoading] = useState(false);
@@ -218,9 +236,16 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
           <Text style={styles.cardTitle}>Student Information</Text>
           <View style={styles.studentCard}>
             <View style={styles.largeAvatar}>
-              <Text style={styles.largeAvatarText}>
-                {`${student?.firstName || '?'} ${student?.lastName || ''}`.trim().charAt(0).toUpperCase()}
-              </Text>
+              {student?.studentIdPhoto ? (
+                  <Image
+                      source={{ uri: resolveAssetUrl(apiBaseUrl, student.studentIdPhoto) }}
+                      style={styles.avatarImage}
+                  />
+              ) : (
+                  <Text style={styles.largeAvatarText}>
+                    {`${student?.firstName || '?'} ${student?.lastName || ''}`.trim().charAt(0).toUpperCase()}
+                  </Text>
+              )}
             </View>
             <View style={styles.studentDetails}>
               <Text style={styles.studentName}>
@@ -228,9 +253,12 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
               </Text>
               <Text style={styles.studentDetail}>ID: {student?.studentId || 'Not available'}</Text>
               <Text style={styles.studentDetail}>Email: {student?.email || 'Not available'}</Text>
-              {student?.age && <Text style={styles.studentDetail}>Age: {student.age}</Text>}
-              {student?.year && <Text style={styles.studentDetail}>Year: {student.year}</Text>}
-              {student?.gpa && <Text style={styles.studentDetail}>GPA: {student.gpa}</Text>}
+              {(currentConcern?.mobileNumber || student?.mobileNumber) && (
+                <Text style={styles.studentDetail}>Mobile: {currentConcern?.mobileNumber || student?.mobileNumber}</Text>
+              )}
+              {(currentConcern?.address || student?.address) && (
+                <Text style={styles.studentDetail}>Address: {currentConcern?.address || student?.address}</Text>
+              )}
             </View>
           </View>
         </View>
@@ -422,6 +450,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   largeAvatarText: {
     color: '#ffffff',

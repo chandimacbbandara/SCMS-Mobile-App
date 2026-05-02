@@ -9,6 +9,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +22,8 @@ import {
   getMyNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  getNotices,
+  dismissNotice,
 } from '../lib/api';
 
 function getInitials(firstName, lastName, email) {
@@ -155,6 +159,28 @@ export default function StudentDashboardScreen({ navigation }) {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notices, setNotices] = useState([]);
+  const [noticesLoading, setNoticesLoading] = useState(true);
+  
+  // Animation refs
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(20))[0];
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.back(1)),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const studentId = user?.id || user?._id;
 
@@ -245,27 +271,56 @@ export default function StudentDashboardScreen({ navigation }) {
     [studentId]
   );
 
+  const loadNotices = useCallback(async () => {
+    if (!studentId) {
+      setNotices([]);
+      setNoticesLoading(false);
+      return;
+    }
+
+    setNoticesLoading(true);
+    try {
+      const response = await getNotices();
+      setNotices(response.notices || []);
+    } catch (error) {
+      console.error('Error loading notices:', error);
+    } finally {
+      setNoticesLoading(false);
+    }
+  }, [studentId]);
+
+  const handleDismissNotice = async (id) => {
+    try {
+      await dismissNotice(id);
+      setNotices(prev => prev.filter(n => n._id !== id));
+    } catch (error) {
+      console.error('Error dismissing notice:', error);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshMe(), loadConcernTracking(true), loadNotifications(true)]);
+      await Promise.all([refreshMe(), loadConcernTracking(true), loadNotifications(true), loadNotices()]);
     } catch (error) {
       // No-op: existing data remains visible.
     } finally {
       setRefreshing(false);
     }
-  }, [refreshMe, loadConcernTracking, loadNotifications]);
+  }, [refreshMe, loadConcernTracking, loadNotifications, loadNotices]);
 
   useEffect(() => {
     loadConcernTracking(false);
     loadNotifications(false);
-  }, [loadConcernTracking, loadNotifications]);
+    loadNotices();
+  }, [loadConcernTracking, loadNotifications, loadNotices]);
 
   useFocusEffect(
     useCallback(() => {
       loadConcernTracking(true);
       loadNotifications(true);
-    }, [loadConcernTracking, loadNotifications])
+      loadNotices();
+    }, [loadConcernTracking, loadNotifications, loadNotices])
   );
 
   const displayName = useMemo(() => {
@@ -281,32 +336,28 @@ export default function StudentDashboardScreen({ navigation }) {
 
   const avatarText = getInitials(user?.firstName, user?.lastName, user?.email);
   const studentPhotoUri = resolveAssetUrl(apiBaseUrl, user?.studentIdPhoto);
-  const memberSince = formatMemberSince(user?.createdAt);
-
-  const profileCompletion = useMemo(() => {
-    const profileChecks = [
-      user?.firstName,
-      user?.lastName,
-      user?.email,
-      user?.studentId,
-      user?.studentIdPhoto,
-    ];
-
-    const completed = profileChecks.filter((value) => String(value || '').trim() !== '').length;
-    return Math.round((completed / profileChecks.length) * 100);
-  }, [user?.email, user?.firstName, user?.lastName, user?.studentId, user?.studentIdPhoto]);
-
-  const idPhotoStatus = user?.studentIdPhoto ? 'Uploaded' : 'Missing';
-
-  const unreadCount = useMemo(() => {
-    return notifications.filter((n) => !n.isRead).length;
-  }, [notifications]);
 
   const activeConcerns = useMemo(() => {
     return trackingConcerns
       .filter((concern) => ['pending', 'reviewing'].includes(String(concern?.status || '').toLowerCase()))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [trackingConcerns]);
+
+  const displayNotifications = useMemo(() => {
+    const formattedNotices = notices.map(n => ({
+      ...n,
+      isNotice: true,
+      isRead: false, // Treat notices as important/unread items
+    }));
+
+    return [...notifications, ...formattedNotices].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+  }, [notifications, notices]);
+
+  const unreadCount = useMemo(() => {
+    return displayNotifications.filter((n) => !n.isRead).length;
+  }, [displayNotifications]);
 
   if (initialSyncing && !user) {
     return (
@@ -319,10 +370,11 @@ export default function StudentDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={styles.scrollWrap}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#e53935" />}
+        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
       >
         <View style={styles.topNavRow}>
           <Text style={styles.topNavTitle}>Student Dashboard</Text>
@@ -342,6 +394,7 @@ export default function StudentDashboardScreen({ navigation }) {
             <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleRefresh}>
               <Ionicons name="refresh-outline" size={18} color="#374151" />
             </TouchableOpacity>
+
             <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.9}>
               <Ionicons name="log-out-outline" size={16} color="#ffffff" />
               <Text style={styles.logoutText}>Logout</Text>
@@ -355,79 +408,66 @@ export default function StudentDashboardScreen({ navigation }) {
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
         >
-          <View style={styles.heroLeft}>
-            <View style={styles.heroTagWrap}>
-              <View style={styles.heroTagDot} />
-              <Text style={styles.heroTag}>Academy of Knowledge Bridge</Text>
-            </View>
-
-            <Text style={styles.heroName}>Welcome, {displayName}</Text>
-            <Text style={styles.heroSubText}>Your account overview is synced to real profile data.</Text>
-
-            <View style={styles.heroMetaRow}>
-              <View style={styles.heroMetaPill}>
-                <Ionicons name="mail-outline" size={12} color="#ffffff" />
-                <Text style={styles.heroMetaText}>{user?.email || 'No email'}</Text>
-              </View>
-              <View style={styles.heroMetaPill}>
-                <Ionicons name="id-card-outline" size={12} color="#ffffff" />
-                <Text style={styles.heroMetaText}>{user?.studentId || 'No ID'}</Text>
-              </View>
-              <View style={styles.heroMetaPill}>
-                <Ionicons name="calendar-outline" size={12} color="#ffffff" />
-                <Text style={styles.heroMetaText}>Member since {memberSince}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.heroRight}>
-            <View style={styles.clockCard}>
-              <Text style={styles.clockDate}>{clock.date}</Text>
-              <Text style={styles.clockTime}>{clock.time}</Text>
-            </View>
-
+          <View style={styles.heroContent}>
             {studentPhotoUri ? (
-              <Image source={{ uri: studentPhotoUri }} style={styles.avatarImage} />
+              <Image source={{ uri: studentPhotoUri }} style={styles.avatarImageLarge} />
             ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarFallbackText}>{avatarText}</Text>
+              <View style={styles.avatarFallbackLarge}>
+                <Text style={styles.avatarFallbackTextLarge}>{avatarText}</Text>
               </View>
             )}
+            <View style={styles.heroTextWrap}>
+              <Text style={styles.heroGreeting}>Welcome back,</Text>
+              <Text style={styles.heroNameLarge}>{displayName}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.heroSettingsButton} 
+              onPress={() => navigation.navigate('StudentSettings')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={22} color="#ffffff" />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
-        <View style={styles.statusGrid}>
-          <View style={styles.statusCard}>
-            <Ionicons name="sparkles-outline" size={20} color="#d32f2f" />
-            <Text style={styles.statusValue}>{profileCompletion}%</Text>
-            <Text style={styles.statusLabel}>Profile Completion</Text>
+        {notices.length > 0 && (
+          <View style={styles.noticesWrapper}>
+            {notices.map((notice) => (
+              <View key={notice._id} style={styles.noticeBanner}>
+                <View style={styles.noticeContent}>
+                  <View style={styles.noticeIconWrap}>
+                    <Ionicons name="megaphone" size={18} color="#e53935" />
+                  </View>
+                  <View style={styles.noticeTextWrap}>
+                    <Text style={styles.noticeTitleText}>{notice.title}</Text>
+                    <Text style={styles.noticeMessageText}>{notice.message}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.dismissNoticeBtn}
+                    onPress={() => handleDismissNotice(notice._id)}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
           </View>
-
-          <View style={styles.statusCard}>
-            <Ionicons name="image-outline" size={20} color="#1565c0" />
-            <Text style={styles.statusValue}>{idPhotoStatus}</Text>
-            <Text style={styles.statusLabel}>ID Photo</Text>
-          </View>
-
-          <View style={styles.statusCard}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#2e7d32" />
-            <Text style={styles.statusValue}>Active</Text>
-            <Text style={styles.statusLabel}>Account Session</Text>
-          </View>
-        </View>
+        )}
 
         <View style={styles.panelCard}>
           <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>Account Details</Text>
+            <Text style={styles.panelTitle}>Account Profile</Text>
             <View style={styles.approvedBadge}>
               <View style={styles.approvedDot} />
-              <Text style={styles.approvedText}>Live</Text>
+              <Text style={styles.approvedText}>Active</Text>
             </View>
           </View>
 
           <View style={styles.profileList}>
             <View style={styles.profileItem}>
-              <Ionicons name="person-outline" size={16} color="#e53935" />
+              <View style={styles.profileIconWrap}>
+                <Ionicons name="person" size={16} color="#ffffff" />
+              </View>
               <View style={styles.profileTextWrap}>
                 <Text style={styles.profileLabel}>Full Name</Text>
                 <Text style={styles.profileValue}>{displayName}</Text>
@@ -435,58 +475,41 @@ export default function StudentDashboardScreen({ navigation }) {
             </View>
 
             <View style={styles.profileItem}>
-              <Ionicons name="mail-outline" size={16} color="#e53935" />
+              <View style={[styles.profileIconWrap, { backgroundColor: '#3b82f6' }]}>
+                <Ionicons name="mail" size={16} color="#ffffff" />
+              </View>
               <View style={styles.profileTextWrap}>
-                <Text style={styles.profileLabel}>Email</Text>
+                <Text style={styles.profileLabel}>Email Address</Text>
                 <Text style={styles.profileValue}>{user?.email || '-'}</Text>
               </View>
             </View>
 
             <View style={styles.profileItem}>
-              <Ionicons name="card-outline" size={16} color="#e53935" />
+              <View style={[styles.profileIconWrap, { backgroundColor: '#f59e0b' }]}>
+                <Ionicons name="id-card" size={16} color="#ffffff" />
+              </View>
               <View style={styles.profileTextWrap}>
-                <Text style={styles.profileLabel}>Student ID</Text>
+                <Text style={styles.profileLabel}>Student Registration ID</Text>
                 <Text style={styles.profileValue}>{user?.studentId || '-'}</Text>
               </View>
             </View>
-
-            <View style={styles.profileItem}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#e53935" />
-              <View style={styles.profileTextWrap}>
-                <Text style={styles.profileLabel}>Role</Text>
-                <Text style={styles.profileValue}>{user?.role || 'student'}</Text>
-              </View>
-            </View>
           </View>
-        </View>
-
-        <View style={[styles.panelCard, styles.mobileActionPanel]}>
-          <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>Mobile Actions</Text>
-            <Text style={styles.panelSubtitle}>Quick controls</Text>
-          </View>
-
-          <View style={styles.mobileActionGrid}>
-            <TouchableOpacity style={styles.mobileActionBtn} activeOpacity={0.9} onPress={handleRefresh}>
-              <Ionicons name="sync-outline" size={18} color="#1565c0" />
-              <Text style={styles.mobileActionText}>Refresh</Text>
-            </TouchableOpacity>
-
-            <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
-              <Ionicons name="analytics-outline" size={18} color="#6b7280" />
-              <Text style={styles.mobileActionText}>Live Profile</Text>
-            </View>
-
-            <View style={[styles.mobileActionBtn, styles.mobileActionBtnPassive]}>
-              <Ionicons name="notifications-outline" size={18} color="#6b7280" />
-              <Text style={styles.mobileActionText}>Alerts Soon</Text>
-            </View>
-
-            <TouchableOpacity style={[styles.mobileActionBtn, styles.mobileActionBtnDanger]} activeOpacity={0.9} onPress={logout}>
-              <Ionicons name="log-out-outline" size={18} color="#b71c1c" />
-              <Text style={[styles.mobileActionText, styles.mobileActionTextDanger]}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
+          
+          <TouchableOpacity 
+            style={styles.actionBtnPrimary}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('StudentConcernStack', { screen: 'SubmitConcern' })}
+          >
+            <LinearGradient
+              colors={['#e53935', '#b71c1c']}
+              style={styles.actionBtnGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
+              <Text style={styles.actionBtnText}>Submit New Concern</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.panelCard, styles.trackingPanel]}>
@@ -589,7 +612,7 @@ export default function StudentDashboardScreen({ navigation }) {
             </View>
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <Modal
         visible={showNotifications}
@@ -616,22 +639,29 @@ export default function StudentDashboardScreen({ navigation }) {
                 <Ionicons name="alert-circle-outline" size={18} color="#b91c1c" />
                 <Text style={styles.modalErrorText}>{notificationsError}</Text>
               </View>
-            ) : notifications.length === 0 ? (
+            ) : displayNotifications.length === 0 ? (
               <View style={styles.modalState}> 
                 <Ionicons name="notifications-off-outline" size={20} color="#94a3b8" />
                 <Text style={styles.modalStateText}>No notifications yet</Text>
               </View>
             ) : (
               <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
-                {notifications.map((item) => (
+                {displayNotifications.map((item) => (
                   <TouchableOpacity
                     key={item._id}
                     style={[
                       styles.notificationItem,
                       !item.isRead && styles.notificationItemUnread,
+                      item.isNotice && styles.noticeItemBorder,
                     ]}
                     activeOpacity={0.9}
                     onPress={async () => {
+                      if (item.isNotice) {
+                        // For notices, we dismiss them
+                        handleDismissNotice(item._id);
+                        return;
+                      }
+
                       if (!item.isRead) {
                         try {
                           await markNotificationRead(item._id);
@@ -652,11 +682,22 @@ export default function StudentDashboardScreen({ navigation }) {
                       }
                     }}
                   >
-                    <View style={styles.notificationIcon}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={18} color="#dc2626" />
+                    <View style={[styles.notificationIcon, item.isNotice && styles.noticeIconBg]}>
+                      <Ionicons 
+                        name={item.isNotice ? "megaphone-outline" : "chatbubble-ellipses-outline"} 
+                        size={18} 
+                        color={item.isNotice ? "#b91c1c" : "#dc2626"} 
+                      />
                     </View>
                     <View style={styles.notificationBody}>
-                      <Text style={styles.notificationTitle}>{item.title}</Text>
+                      <View style={styles.notificationHeaderRow}>
+                        <Text style={styles.notificationTitle}>{item.title}</Text>
+                        {item.isNotice && (
+                          <View style={styles.noticeBadge}>
+                            <Text style={styles.noticeBadgeText}>BROADCAST</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.notificationMessage} numberOfLines={2}>
                         {item.message}
                       </Text>
@@ -711,8 +752,52 @@ const styles = StyleSheet.create({
   scrollWrap: {
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 22,
     gap: 12,
+  },
+  noticesWrapper: {
+    gap: 10,
+    marginBottom: 4,
+  },
+  noticeBanner: {
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  noticeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  noticeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff1f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noticeTextWrap: {
+    flex: 1,
+  },
+  noticeTitleText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  noticeMessageText: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  dismissNoticeBtn: {
+    padding: 4,
   },
   topNavRow: {
     flexDirection: 'row',
@@ -774,167 +859,67 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   heroCard: {
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'column',
-    gap: 12,
+    borderRadius: 24,
+    padding: 20,
+    marginVertical: 4,
   },
-  heroLeft: {
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  heroTextWrap: {
     flex: 1,
   },
-  heroTagWrap: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    marginBottom: 10,
-  },
-  heroTagDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
-  },
-  heroTag: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-  },
-  heroName: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
-  heroSubText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 10,
-  },
-  heroMetaRow: {
-    gap: 7,
-  },
-  heroMetaPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  heroMetaText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  heroRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  clockCard: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    alignItems: 'flex-start',
-    minWidth: 110,
-  },
-  clockDate: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 10,
-    marginBottom: 2,
+  heroGreeting: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
     fontWeight: '600',
   },
-  clockTime: {
-    color: '#ffffff',
-    fontSize: 21,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-  },
-  avatarImage: {
-    width: 66,
-    height: 66,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.42)',
-    backgroundColor: '#ffffff',
-  },
-  avatarFallback: {
-    width: 66,
-    height: 66,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.42)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  avatarFallbackText: {
+  heroNameLarge: {
     color: '#ffffff',
     fontSize: 22,
     fontWeight: '900',
   },
-  statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  statusCard: {
-    flex: 1,
-    minWidth: 102,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e4e9f2',
+  avatarImageLarge: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
     backgroundColor: '#ffffff',
-    padding: 12,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-    alignItems: 'flex-start',
-    minHeight: 118,
   },
-  statusValue: {
-    fontSize: 20,
-    color: '#111827',
+  avatarFallbackLarge: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  avatarFallbackTextLarge: {
+    color: '#ffffff',
+    fontSize: 24,
     fontWeight: '900',
-    marginTop: 8,
-    marginBottom: 4,
   },
-  statusLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.55,
+  heroSettingsButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   panelCard: {
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#e3e9f3',
-    backgroundColor: '#ffffff',
-    padding: 14,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   panelHeaderRow: {
     flexDirection: 'row',
@@ -990,57 +975,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#fbfcfe',
     padding: 10,
   },
+  profileIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   profileTextWrap: {
     flex: 1,
   },
   profileLabel: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 2,
-    fontWeight: '700',
-  },
-  profileValue: {
-    color: '#111827',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  mobileActionPanel: {
-    marginTop: 0,
-  },
-  mobileActionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  mobileActionBtn: {
-    width: '48%',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d7e4f6',
-    backgroundColor: '#f0f7ff',
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-  },
-  mobileActionBtnPassive: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#e5e7eb',
-  },
-  mobileActionBtnDanger: {
-    backgroundColor: '#fff5f5',
-    borderColor: '#fecaca',
-  },
-  mobileActionText: {
-    color: '#0f172a',
-    fontSize: 12,
+    letterSpacing: 0.8,
+    marginBottom: 1,
     fontWeight: '800',
   },
-  mobileActionTextDanger: {
-    color: '#b71c1c',
+  profileValue: {
+    color: '#0f172a',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  actionBtnPrimary: {
+    marginTop: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  actionBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  actionBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   trackingPanel: {
     gap: 9,
@@ -1288,6 +1263,29 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '700',
   },
+  notificationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  noticeBadge: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  noticeBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#b91c1c',
+  },
+  noticeItemBorder: {
+    borderColor: '#fecaca',
+  },
+  noticeIconBg: {
+    backgroundColor: '#fff1f2',
+  },
   modalAction: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1325,39 +1323,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  mobileBottomBar: {
-    marginBottom: 2,
-  },
-  bottomTabsWrap: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    padding: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bottomTab: {
-    flex: 1,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    gap: 5,
-  },
-  bottomTabActive: {
-    backgroundColor: '#fff0f0',
-  },
-  bottomTabText: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bottomTabTextActive: {
-    color: '#e53935',
   },
 });

@@ -1,18 +1,29 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
-function makeStars(rating) {
-  const value = Math.max(0, Math.min(5, Number(rating || 0)));
-  const full = '★'.repeat(value);
-  const empty = '☆'.repeat(5 - value);
-  return full + empty;
+function StarRating({ rating }) {
+  const safeRating = Math.max(0, Math.min(5, Number(rating || 0)));
+  return (
+    <View style={styles.starRow}>
+      {[1, 2, 3, 4, 5].map((value) => (
+        <Ionicons 
+          key={value} 
+          name={value <= safeRating ? "star" : "star-outline"} 
+          size={16} 
+          color="#f59e0b" 
+        />
+      ))}
+      <Text style={styles.starsMeta}>({safeRating}/5)</Text>
+    </View>
+  );
 }
 
 export default function FeedbackCard({ rating, comment, category, width }) {
   return (
     <View style={[styles.card, width ? { width } : null]}>
-      <Text style={styles.stars}>{makeStars(rating)} <Text style={styles.starsMeta}>({rating}/5)</Text></Text>
-      <Text style={styles.comment}>{comment}</Text>
+      <StarRating rating={rating} />
+      <Text style={styles.comment} numberOfLines={3}>{comment}</Text>
       <View style={styles.meta}>
         <Text style={styles.metaText}>{category}</Text>
       </View>
@@ -37,15 +48,17 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 2,
   },
-  stars: {
-    color: '#f59e0b',
-    fontSize: 18,
-    marginBottom: 9,
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
   },
   starsMeta: {
     color: '#6b7280',
     fontSize: 12,
     fontWeight: '700',
+    marginLeft: 4,
   },
   comment: {
     color: '#334155',

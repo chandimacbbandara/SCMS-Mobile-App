@@ -1,4 +1,3 @@
-// screens/StudentConcernScreen.jsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,19 +12,24 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { submitConcernWithReport } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import { submitConcernWithReport, updateStudentConcern } from '../lib/api';
 
 const StudentConcernScreen = ({ navigation, route }) => {
-  const [concernType, setConcernType] = useState('Normal Concern');
-  const [genre, setGenre] = useState('Academic Support and Resources');
-  const [description, setDescription] = useState('');
+  const { user, apiBaseUrl } = useAuth();
+  const editConcern = route.params?.concern;
+  
+  const [concernType, setConcernType] = useState(editConcern?.concernType || 'Normal Concern');
+  const [genre, setGenre] = useState(editConcern?.genre || 'Academic Support and Resources');
+  const [description, setDescription] = useState(editConcern?.description || '');
   const [medicalReport, setMedicalReport] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showMedicalInfo, setShowMedicalInfo] = useState(false);
+  const [showMedicalInfo, setShowMedicalInfo] = useState(editConcern?.genre === 'Medical Concern');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const genres = [
@@ -41,39 +45,6 @@ const StudentConcernScreen = ({ navigation, route }) => {
     'Other'
   ];
 
-  // Debug auth on component mount
-  useEffect(() => {
-    const debugAuth = async () => {
-      try {
-        const token = await AsyncStorage.getItem('scms_auth_token');
-        const userData = await AsyncStorage.getItem('scms_auth_user');
-        
-        console.log('========== DEBUG AUTH ==========');
-        console.log('Token exists:', !!token);
-        if (token) {
-          console.log('Token preview:', token.substring(0, 50) + '...');
-        }
-        console.log('User data exists:', !!userData);
-        
-        if (userData) {
-          const user = JSON.parse(userData);
-          console.log('User ID:', user.id || user._id);
-          console.log('User role:', user.role);
-          console.log('User email:', user.email);
-          console.log('User age:', user.age);
-          console.log('User GPA:', user.gpa);
-          console.log('User year:', user.year);
-          console.log('User gender:', user.gender);
-        }
-        console.log('================================');
-      } catch (error) {
-        console.error('Debug error:', error);
-      }
-    };
-    
-    debugAuth();
-  }, []);
-
   // Request permissions for image picker
   const requestPermissions = async () => {
     if (Platform.OS !== 'web') {
@@ -87,28 +58,27 @@ const StudentConcernScreen = ({ navigation, route }) => {
     return true;
   };
 
-  // Pick image from gallery - FIXED deprecated MediaTypeOptions
   const pickImage = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], // ✅ FIXED: Changed from MediaTypeOptions.Images
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
 
     if (!result.canceled) {
+      const asset = result.assets[0];
       const file = {
-        uri: result.assets[0].uri,
+        uri: asset.uri,
         type: 'image/jpeg',
-        name: `medical_report_${Date.now()}.jpg`,
+        name: asset.fileName || `medical_report_${Date.now()}.jpg`,
       };
       setMedicalReport(file);
     }
   };
 
-  // Pick document (PDF)
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -116,11 +86,12 @@ const StudentConcernScreen = ({ navigation, route }) => {
         copyToCacheDirectory: true,
       });
 
-      if (result.type === 'success') {
+      if (!result.canceled) {
+        const asset = result.assets[0];
         const file = {
-          uri: result.uri,
-          type: result.mimeType,
-          name: result.name,
+          uri: asset.uri,
+          type: asset.mimeType,
+          name: asset.name,
         };
         setMedicalReport(file);
       }
@@ -130,7 +101,6 @@ const StudentConcernScreen = ({ navigation, route }) => {
     }
   };
 
-  // Take photo with camera
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -144,10 +114,11 @@ const StudentConcernScreen = ({ navigation, route }) => {
     });
 
     if (!result.canceled) {
+      const asset = result.assets[0];
       const file = {
-        uri: result.assets[0].uri,
+        uri: asset.uri,
         type: 'image/jpeg',
-        name: `medical_report_${Date.now()}.jpg`,
+        name: asset.fileName || `medical_report_${Date.now()}.jpg`,
       };
       setMedicalReport(file);
     }
@@ -185,359 +156,401 @@ const StudentConcernScreen = ({ navigation, route }) => {
     setLoading(true);
 
     try {
-      // Get user data from storage
-      const userData = await AsyncStorage.getItem('scms_auth_user');
-      const token = await AsyncStorage.getItem('scms_auth_token');
-      
-      console.log('=== SUBMIT DEBUG ===');
-      console.log('Token exists:', !!token);
-      console.log('User data exists:', !!userData);
-      
-      const user = userData ? JSON.parse(userData) : null;
-
-      if (!user || !token) {
-        console.log('Missing user or token');
+      if (!user) {
         Alert.alert('Error', 'Please login again');
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Login' }],
-        });
+        navigation.navigate('Login');
         return;
       }
 
-      console.log('Student ID being sent:', user.id || user._id);
-
-      // Prepare concern data
       const concernData = {
         concernType: concernType,
         genre: genre,
         description: description,
         studentId: user.id || user._id,
         age: user.age,
-        gpa: user.gpa,
-        year: user.year,
+        mobileNumber: user.mobileNumber,
+        address: user.address,
         gender: user.gender,
       };
 
-      console.log('Concern data:', concernData);
+      let response;
+      if (editConcern) {
+        response = await updateStudentConcern(editConcern._id || editConcern.id, concernData, medicalReport);
+      } else {
+        response = await submitConcernWithReport(concernData, medicalReport);
+      }
 
-      // Submit the concern
-      const response = await submitConcernWithReport(concernData, medicalReport);
-
-      console.log('Response:', response);
-
-      if (response.success) {
+      if (response.success || response.status === 'ok') {
         Alert.alert(
-          'Success',
-          'Your concern has been submitted successfully!',
+          editConcern ? 'Update Successful' : 'Submission Successful',
+          editConcern 
+            ? 'Your concern has been updated successfully.' 
+            : 'Your concern has been submitted and our team will review it shortly.',
           [
             {
               text: 'OK',
               onPress: () => {
-                setDescription('');
-                setMedicalReport(null);
-                setConcernType('Normal Concern');
-                setGenre('Academic Support and Resources');
-                setShowMedicalInfo(false);
-                navigation.navigate('ConcernHistory');
+                navigation.goBack();
               },
             },
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'Failed to submit concern');
+        Alert.alert('Error', response.message || 'Failed to process concern');
       }
     } catch (error) {
-      console.error('Submission error details:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to submit concern. Please try again.'
-      );
+      Alert.alert('Error', error.message || 'Failed to submit concern. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.header}>
-          <Text style={styles.title}>Submit a Concern</Text>
-          <Text style={styles.subtitle}>
-            Your voice matters. Share your concerns with us.
-          </Text>
-        </View>
-
-        {/* Concern Type Selection */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Concern Type *</Text>
-          <View style={styles.typeContainer}>
-            {['Normal Concern', 'Consulting Support'].map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.typeChip,
-                  concernType === type && styles.typeChipActive
-                ]}
-                onPress={() => {
-                  setConcernType(type);
-                  if (type === 'Consulting Support') {
-                    setGenre('Medical Concern');
-                    setShowMedicalInfo(true);
-                    setShowCategoryDropdown(false);
-                  } else {
-                    if (genre === 'Medical Concern') {
-                      setGenre('Academic Support and Resources');
-                      setShowMedicalInfo(false);
-                    }
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={[
-                  styles.typeChipText,
-                  concernType === type && styles.typeChipTextActive
-                ]}>
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Genre Selection */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Category *</Text>
-          
-          <TouchableOpacity 
-            style={styles.dropdownButton} 
-            onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.dropdownButtonText}>{genre}</Text>
-            <Ionicons name={showCategoryDropdown ? "chevron-up" : "chevron-down"} size={20} color="#64748b" />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
+          <Text style={styles.headerTitle}>{editConcern ? 'Update Concern' : 'Submit Concern'}</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-          {showCategoryDropdown && (
-            <View style={styles.dropdownList}>
-              <ScrollView nestedScrollEnabled style={{ maxHeight: 220 }}>
-                {(concernType === 'Consulting Support' 
-                  ? ['Medical Concern'] 
-                  : genres.filter(g => g !== 'Medical Concern')
-                ).map((g) => (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <LinearGradient
+            colors={['#e53935', '#b71c1c']}
+            style={styles.heroBanner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="megaphone-outline" size={40} color="rgba(255,255,255,0.3)" style={styles.bannerIcon} />
+            <Text style={styles.bannerTitle}>We're Here to Listen</Text>
+            <Text style={styles.bannerSubtitle}>
+              Share your concerns or feedback to help us improve your campus experience.
+            </Text>
+          </LinearGradient>
+
+          <View style={styles.formCard}>
+            {/* Concern Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Concern Type</Text>
+              <View style={styles.typeSelector}>
+                {['Normal Concern', 'Consulting Support'].map((type) => (
                   <TouchableOpacity
-                    key={g}
+                    key={type}
                     style={[
-                      styles.dropdownItem,
-                      genre === g && styles.dropdownItemActive
+                      styles.typeOption,
+                      concernType === type && styles.typeOptionActive
                     ]}
                     onPress={() => {
-                      setGenre(g);
-                      setShowMedicalInfo(g === 'Medical Concern');
+                      setConcernType(type);
+                      if (type === 'Consulting Support') {
+                        setGenre('Medical Concern');
+                        setShowMedicalInfo(true);
+                      } else if (genre === 'Medical Concern') {
+                        setGenre('Academic Support and Resources');
+                        setShowMedicalInfo(false);
+                      }
                       setShowCategoryDropdown(false);
                     }}
                   >
                     <Text style={[
-                      styles.dropdownItemText,
-                      genre === g && styles.dropdownItemTextActive
+                      styles.typeOptionText,
+                      concernType === type && styles.typeOptionTextActive
                     ]}>
-                      {g}
+                      {type}
                     </Text>
-                    {genre === g && (
-                      <Ionicons name="checkmark-circle" size={18} color="#2563eb" />
-                    )}
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
-          )}
-        </View>
 
-        {/* Medical Information (conditional) */}
-        {showMedicalInfo && (
-          <View style={styles.medicalInfoContainer}>
-            <Text style={styles.medicalInfoTitle}>Medical Concern Details</Text>
-            <Text style={styles.medicalInfoText}>
-              Please upload any relevant medical reports or documents to help us better
-              understand and address your concern. All information will be kept confidential.
-            </Text>
-          </View>
-        )}
-
-        {/* Description */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Description *</Text>
-          <TextInput
-            style={styles.textArea}
-            multiline
-            numberOfLines={6}
-            placeholder="Please describe your concern in detail..."
-            placeholderTextColor="#999"
-            value={description}
-            onChangeText={setDescription}
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>
-            {description.length} characters (minimum 10)
-          </Text>
-        </View>
-
-        {/* Medical Report Upload (only for medical concerns) */}
-        {showMedicalInfo && (
-          <View style={styles.section}>
-            <Text style={styles.label}>Medical Report (Optional but recommended)</Text>
-            {!medicalReport ? (
-              <TouchableOpacity style={styles.uploadButton} onPress={showUploadOptions}>
-                <Text style={styles.uploadButtonText}>📎 Upload Medical Report</Text>
-                <Text style={styles.uploadSubtext}>
-                  Support: JPG, PNG, PDF (Max 10MB)
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.filePreview}>
-                <View style={styles.fileInfo}>
-                  <Text style={styles.fileIcon}>
-                    {medicalReport.type && medicalReport.type.includes('pdf') ? '📄' : '🖼️'}
-                  </Text>
-                  <View style={styles.fileDetails}>
-                    <Text style={styles.fileName} numberOfLines={1}>
-                      {medicalReport.name}
-                    </Text>
-                    <Text style={styles.fileType}>
-                      {medicalReport.type && medicalReport.type.includes('pdf') ? 'PDF Document' : 'Image File'}
-                    </Text>
-                  </View>
+            {/* Category Dropdown */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Category</Text>
+              <TouchableOpacity 
+                style={styles.pickerTrigger} 
+                onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.pickerMain}>
+                  <Ionicons name="grid-outline" size={18} color="#64748b" style={styles.fieldIcon} />
+                  <Text style={styles.pickerValue}>{genre}</Text>
                 </View>
-                {medicalReport.uri && !medicalReport.uri.includes('file://') && (
-                  <Image source={{ uri: medicalReport.uri }} style={styles.thumbnail} />
-                )}
-                <TouchableOpacity
-                  style={styles.removeFileButton}
-                  onPress={removeMedicalReport}
-                >
-                  <Text style={styles.removeFileText}>Remove</Text>
-                </TouchableOpacity>
+                <Ionicons name={showCategoryDropdown ? "chevron-up" : "chevron-down"} size={20} color="#64748b" />
+              </TouchableOpacity>
+
+              {showCategoryDropdown && (
+                <View style={styles.dropdownMenu}>
+                  {(concernType === 'Consulting Support' 
+                    ? ['Medical Concern'] 
+                    : genres.filter(g => g !== 'Medical Concern')
+                  ).map((g) => (
+                    <TouchableOpacity
+                      key={g}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setGenre(g);
+                        setShowMedicalInfo(g === 'Medical Concern');
+                        setShowCategoryDropdown(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownItemText, genre === g && styles.dropdownItemTextActive]}>{g}</Text>
+                      {genre === g && <Ionicons name="checkmark" size={18} color="#e53935" />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Medical Info Banner */}
+            {showMedicalInfo && (
+              <View style={styles.alertBanner}>
+                <Ionicons name="medical-outline" size={20} color="#b91c1c" />
+                <View style={styles.alertTextWrap}>
+                  <Text style={styles.alertTitle}>Medical Assistance</Text>
+                  <Text style={styles.alertMessage}>
+                    Please provide details and upload any supporting documents. Confidentiality is our priority.
+                  </Text>
+                </View>
               </View>
             )}
+
+            {/* Description */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description</Text>
+              <View style={styles.textAreaContainer}>
+                <TextInput
+                  style={styles.textArea}
+                  multiline
+                  numberOfLines={6}
+                  placeholder="Tell us what happened..."
+                  placeholderTextColor="#94a3b8"
+                  value={description}
+                  onChangeText={setDescription}
+                  textAlignVertical="top"
+                />
+                <View style={styles.textAreaFooter}>
+                  <Text style={[styles.charCount, description.length < 10 && { color: '#ef4444' }]}>
+                    {description.length} / 10 min characters
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* File Upload */}
+            {showMedicalInfo && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Attachments</Text>
+                {!medicalReport ? (
+                  <TouchableOpacity style={styles.uploadArea} onPress={showUploadOptions}>
+                    <View style={styles.uploadCircle}>
+                      <Ionicons name="cloud-upload-outline" size={24} color="#e53935" />
+                    </View>
+                    <Text style={styles.uploadTitle}>Upload Documents</Text>
+                    <Text style={styles.uploadSubtitle}>Tap to select image or PDF</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.fileCard}>
+                    <View style={styles.fileIconWrap}>
+                      <Ionicons 
+                        name={medicalReport.type?.includes('pdf') ? "document-text" : "image"} 
+                        size={24} 
+                        color="#e53935" 
+                      />
+                    </View>
+                    <View style={styles.fileMeta}>
+                      <Text style={styles.fileName} numberOfLines={1}>{medicalReport.name}</Text>
+                      <Text style={styles.fileSize}>Ready to upload</Text>
+                    </View>
+                    <TouchableOpacity onPress={removeMedicalReport} style={styles.removeBtn}>
+                      <Ionicons name="close-circle" size={24} color="#cbd5e1" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <TouchableOpacity 
+              style={[styles.submitBtn, loading && styles.submitBtnDisabled]} 
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#e53935', '#b71c1c']}
+                style={styles.submitGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name={editConcern ? "save-outline" : "paper-plane"} size={20} color="#ffffff" />
+                    <Text style={styles.submitBtnText}>{editConcern ? 'Update Concern' : 'Submit Concern'}</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.securityNote}>
+              <Ionicons name="shield-checkmark-outline" size={14} color="#64748b" />
+              <Text style={styles.securityText}>
+                Your data is encrypted and handled by professional staff.
+              </Text>
+            </View>
           </View>
-        )}
-
-        {/* Additional Info */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
-          <Text style={styles.infoText}>
-            Your concern will be reviewed by our team. We typically respond within 2-3
-            business days. All information is kept confidential.
-          </Text>
-        </View>
-
-        {/* Submit Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Submit Concern</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContainer: {
-    padding: 20,
-    paddingBottom: 40,
+    backgroundColor: '#e53935', // Match red theme
   },
   header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  typeContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  typeChip: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeChipActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#3b82f6',
-  },
-  typeChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  typeChipTextActive: {
-    color: '#2563eb',
-    fontWeight: '700',
-  },
-  dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    padding: 8,
     borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  scrollContent: {
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    minHeight: '100%',
+    marginTop: 10,
+  },
+  heroBanner: {
+    padding: 24,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingBottom: 40,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  bannerIcon: {
+    position: 'absolute',
+    right: -10,
+    top: -10,
+    transform: [{ rotate: '-15deg' }],
+  },
+  bannerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  bannerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  formCard: {
+    marginTop: -24,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  typeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 14,
+    padding: 4,
+  },
+  typeOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeOptionActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  typeOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  typeOptionTextActive: {
+    color: '#e53935',
+  },
+  pickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    height: 52,
   },
-  dropdownButtonText: {
-    fontSize: 15,
+  pickerMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldIcon: {
+    marginRight: 10,
+  },
+  pickerValue: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#1e293b',
   },
-  dropdownList: {
-    marginTop: 6,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  dropdownMenu: {
+    marginTop: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+    overflow: 'hidden',
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -548,151 +561,165 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  dropdownItemActive: {
-    backgroundColor: '#eff6ff',
-  },
   dropdownItemText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#475569',
   },
   dropdownItemTextActive: {
-    color: '#2563eb',
+    color: '#e53935',
     fontWeight: '700',
   },
-  textArea: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 12,
-    fontSize: 16,
-    minHeight: 120,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
-    textAlign: 'right',
-  },
-  medicalInfoContainer: {
-    backgroundColor: '#e3f2fd',
-    borderRadius: 8,
-    padding: 12,
+  alertBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#fef2f2',
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196f3',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
   },
-  medicalInfoTitle: {
+  alertTextWrap: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  alertTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1976d2',
-    marginBottom: 4,
+    fontWeight: '800',
+    color: '#b91c1c',
+    marginBottom: 2,
   },
-  medicalInfoText: {
-    fontSize: 13,
-    color: '#555',
+  alertMessage: {
+    fontSize: 12,
+    color: '#7f1d1d',
     lineHeight: 18,
   },
-  uploadButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-  },
-  uploadButtonText: {
-    fontSize: 16,
-    color: '#2196f3',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  uploadSubtext: {
-    fontSize: 12,
-    color: '#999',
-  },
-  filePreview: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+  textAreaContainer: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e2e8f0',
     padding: 12,
   },
-  fileInfo: {
-    flexDirection: 'row',
+  textArea: {
+    minHeight: 120,
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  textAreaFooter: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  charCount: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  uploadArea: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+    padding: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff1f2',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
-  fileIcon: {
-    fontSize: 32,
-    marginRight: 12,
+  uploadTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#e53935',
+    marginBottom: 4,
   },
-  fileDetails: {
+  uploadSubtitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  fileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  fileIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#fff1f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fileMeta: {
     flex: 1,
+    marginLeft: 12,
   },
   fileName: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1e293b',
   },
-  fileType: {
+  fileSize: {
     fontSize: 12,
-    color: '#666',
+    color: '#16a34a',
+    fontWeight: '600',
     marginTop: 2,
   },
-  thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginBottom: 8,
+  removeBtn: {
+    padding: 4,
   },
-  removeFileButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#ffebee',
-    borderRadius: 6,
+  submitBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 10,
+    elevation: 3,
+    shadowColor: '#e53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  removeFileText: {
-    color: '#f44336',
-    fontSize: 12,
-    fontWeight: '500',
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
-  infoBox: {
+  submitGradient: {
     flexDirection: 'row',
-    backgroundColor: '#fff3e0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ff9800',
-  },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#555',
-    lineHeight: 18,
-  },
-  submitButton: {
-    backgroundColor: '#2196f3',
-    borderRadius: 8,
-    padding: 16,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 10,
   },
-  submitButtonDisabled: {
-    backgroundColor: '#90caf9',
+  submitBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
+  securityNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 6,
+  },
+  securityText: {
+    fontSize: 12,
+    color: '#94a3b8',
     fontWeight: '600',
   },
 });

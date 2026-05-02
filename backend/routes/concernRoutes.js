@@ -8,6 +8,8 @@ const { protect, requireStaff } = require('../middleware/authMiddleware');
 router.post('/submit', protect, concernController.submitConcern);
 router.get('/my-concerns/:studentId', protect, concernController.getStudentConcerns);
 router.get('/my-concerns/detail/:concernId', protect, concernController.getConcernById);
+router.delete('/my-concerns/:concernId', protect, concernController.studentDeleteConcern);
+router.put('/my-concerns/:concernId', protect, concernController.studentUpdateConcern);
 
 // Admin routes (add proper authorization when needed)
 router.get('/all', protect, requireStaff, concernController.getAllConcerns);

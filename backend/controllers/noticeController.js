@@ -1,4 +1,5 @@
 const Notice = require('../models/Notice');
+const Student = require('../models/Student');
 
 // @desc    Get all notices
 // @route   GET /api/notices
@@ -7,9 +8,13 @@ exports.getNotices = async (req, res) => {
   try {
     let notices = await Notice.find().sort({ createdAt: -1 }); // Newest first
 
-    if (req.user && (!req.user.role || req.user.role === 'student') && req.user.dismissedNotices) {
-      const dismissedIds = req.user.dismissedNotices.map(id => id.toString());
-      notices = notices.filter(n => !dismissedIds.includes(n._id.toString()));
+    if (req.user && (!req.user.role || req.user.role === 'student')) {
+      // Find the actual student document to get dismissedNotices
+      const student = await Student.findById(req.user._id || req.user.id);
+      if (student && student.dismissedNotices) {
+        const dismissedIds = student.dismissedNotices.map(id => id.toString());
+        notices = notices.filter(n => !dismissedIds.includes(n._id.toString()));
+      }
     }
 
     res.status(200).json({ notices });
@@ -32,7 +37,7 @@ exports.createNotice = async (req, res) => {
     const notice = await Notice.create({
       title,
       message,
-      createdBy: req.admin._id, // Assume populated by auth middleware
+      createdBy: req.user.id || req.user._id || 'owner',
     });
 
     res.status(201).json({ message: 'Notice created successfully', notice });
@@ -93,7 +98,15 @@ exports.dismissNotice = async (req, res) => {
       return res.status(403).json({ message: 'Only students can dismiss notices' });
     }
 
-    const student = req.user;
+    const student = await Student.findById(req.user._id || req.user.id);
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (!student.dismissedNotices) {
+      student.dismissedNotices = [];
+    }
+
     if (!student.dismissedNotices.includes(req.params.id)) {
       student.dismissedNotices.push(req.params.id);
       await student.save();

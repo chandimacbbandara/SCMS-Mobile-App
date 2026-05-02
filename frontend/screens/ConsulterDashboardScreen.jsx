@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -70,8 +71,25 @@ function getStatusLabel(status) {
   }
 }
 
+function resolveAssetUrl(apiBaseUrl, pathValue) {
+  if (!pathValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue;
+  }
+
+  const base = String(apiBaseUrl || '').replace(/\/api\/?$/, '');
+  if (!base) {
+    return pathValue;
+  }
+
+  return `${base}${String(pathValue).startsWith('/') ? '' : '/'}${pathValue}`;
+}
+
 export default function ConsulterDashboardScreen({ navigation }) {
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, apiBaseUrl } = useAuth();
 
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -268,7 +286,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#dc2626" />}
         >
           <LinearGradient
-              colors={['#111827', '#1f2937', '#7f1d1d']}
+              colors={['#0f172a', '#134e4a', '#0d9488']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.hero}
@@ -309,7 +327,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
           {loading ? (
               <View style={styles.loaderCard}>
-                <ActivityIndicator size="large" color="#dc2626" />
+                <ActivityIndicator size="large" color="#0d9488" />
                 <Text style={styles.loaderText}>Loading consulter analytics...</Text>
               </View>
           ) : (
@@ -379,7 +397,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
                   {concernsLoading ? (
                       <View style={concernsStyles.loaderWrap}>
-                        <ActivityIndicator size="large" color="#dc2626" />
+                        <ActivityIndicator size="large" color="#0d9488" />
                         <Text style={concernsStyles.loaderText}>Loading concerns...</Text>
                       </View>
                   ) : (
@@ -412,12 +430,19 @@ export default function ConsulterDashboardScreen({ navigation }) {
                                       <View style={concernsStyles.headerRow}>
                                         <View style={concernsStyles.studentInfo}>
                                           <View style={concernsStyles.avatar}>
-                                            <Text style={concernsStyles.avatarText}>
-                                              {`${concern.studentId?.firstName || '?'} ${concern.studentId?.lastName || ''}`
-                                                  .trim()
-                                                  .charAt(0)
-                                                  .toUpperCase()}
-                                            </Text>
+                                            {concern.studentId?.studentIdPhoto ? (
+                                                <Image
+                                                    source={{ uri: resolveAssetUrl(apiBaseUrl, concern.studentId.studentIdPhoto) }}
+                                                    style={concernsStyles.avatarImage}
+                                                />
+                                            ) : (
+                                                <Text style={concernsStyles.avatarText}>
+                                                  {`${concern.studentId?.firstName || '?'} ${concern.studentId?.lastName || ''}`
+                                                      .trim()
+                                                      .charAt(0)
+                                                      .toUpperCase()}
+                                                </Text>
+                                            )}
                                           </View>
                                           <View style={concernsStyles.studentMeta}>
                                             <Text style={concernsStyles.studentName}>
@@ -641,8 +666,8 @@ const styles = StyleSheet.create({
   badge: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.45)',
-    backgroundColor: 'rgba(220,38,38,0.18)',
+    borderColor: 'rgba(45,212,191,0.4)',
+    backgroundColor: 'rgba(13,148,136,0.15)',
     paddingVertical: 5,
     paddingHorizontal: 11,
     flexDirection: 'row',
@@ -652,7 +677,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 999,
-    backgroundColor: '#fca5a5',
+    backgroundColor: '#2dd4bf',
   },
   badgeText: {
     marginLeft: 6,
@@ -664,7 +689,7 @@ const styles = StyleSheet.create({
   },
   logoutBtn: {
     borderRadius: 999,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#0d9488',
     paddingHorizontal: 11,
     paddingVertical: 8,
     flexDirection: 'row',
@@ -943,12 +968,18 @@ const concernsStyles = StyleSheet.create({
     marginRight: 8,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#dc2626',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#0d9488',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarText: {
     color: '#ffffff',

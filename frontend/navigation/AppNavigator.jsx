@@ -18,7 +18,9 @@ import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminConcernDetailScreen from '../screens/AdminConcernDetailScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
+import StudentSettingsScreen from '../screens/StudentSettingsScreen';
 import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
+import OwnerBroadcastScreen from '../screens/OwnerBroadcastScreen';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -42,39 +44,20 @@ function StudentConcernStackNavigator() {
   return (
     <StudentConcernStack.Navigator
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#05070a',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: '600',
-        },
-        headerBackTitle: 'Back',
+        headerShown: false,
       }}
     >
       <StudentConcernStack.Screen
         name="SubmitConcern"
         component={StudentConcernScreen}
-        options={{
-          title: 'Submit Concern',
-          headerShown: true,
-        }}
       />
       <StudentConcernStack.Screen
         name="ConcernHistory"
         component={ConcernHistoryScreen}
-        options={{
-          title: 'My Concerns',
-          headerShown: true,
-        }}
       />
       <StudentConcernStack.Screen
         name="ConcernDetail"
         component={ConcernDetailScreen}
-        options={{
-          title: 'Concern Details',
-          headerShown: true,
-        }}
       />
     </StudentConcernStack.Navigator>
   );
@@ -85,39 +68,20 @@ function StudentConcernHistoryStackNavigator() {
     <StudentConcernHistoryStack.Navigator
       initialRouteName="ConcernHistory"
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#05070a',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: '600',
-        },
-        headerBackTitle: 'Back',
+        headerShown: false,
       }}
     >
       <StudentConcernHistoryStack.Screen
         name="ConcernHistory"
         component={ConcernHistoryScreen}
-        options={{
-          title: 'My Concerns',
-          headerShown: true,
-        }}
       />
       <StudentConcernHistoryStack.Screen
         name="SubmitConcern"
         component={StudentConcernScreen}
-        options={{
-          title: 'Submit Concern',
-          headerShown: true,
-        }}
       />
       <StudentConcernHistoryStack.Screen
         name="ConcernDetail"
         component={ConcernDetailScreen}
-        options={{
-          title: 'Concern Details',
-          headerShown: true,
-        }}
       />
     </StudentConcernHistoryStack.Navigator>
   );
@@ -268,6 +232,15 @@ function getRoleTabs(role) {
       activeIcon: 'settings',
       inactiveIcon: 'settings-outline',
     });
+
+    tabs.push({
+      name: 'OwnerBroadcast',
+      component: OwnerBroadcastScreen,
+      label: 'Broadcast',
+      title: 'Broadcast',
+      activeIcon: 'megaphone',
+      inactiveIcon: 'megaphone-outline',
+    });
   }
 
   if (normalizedRole === 'owner' || normalizedRole === 'admin' || normalizedRole === 'consulter') {
@@ -387,11 +360,14 @@ function AuthRootNavigator() {
         name="ConcernDetail" 
         component={ConcernDetailScreen} 
         options={{
-          headerShown: true,
-          title: 'Concern Details',
-          headerStyle: { backgroundColor: '#05070a' },
-          headerTintColor: '#fff',
-          headerBackTitle: 'Back',
+          headerShown: false,
+        }}
+      />
+      <RootStack.Screen 
+        name="StudentSettings" 
+        component={StudentSettingsScreen} 
+        options={{
+          headerShown: false,
         }}
       />
     </RootStack.Navigator>

@@ -10,33 +10,28 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../lib/api';
 import FeedbackCard from '../components/FeedbackCard';
 import FeedbackDistributionCard from '../components/FeedbackDistributionCard';
 
-
 const STAR_VALUES = [1, 2, 3, 4, 5];
 const SORT_OPTIONS = [
-  { id: 'rating_desc', label: 'Highest Rating' },
-  { id: 'rating_asc', label: 'Lowest Rating' },
-  { id: 'latest', label: 'Latest' },
+  { id: 'rating_desc', label: 'Highest Rating', icon: 'trending-up' },
+  { id: 'rating_asc', label: 'Lowest Rating', icon: 'trending-down' },
+  { id: 'latest', label: 'Latest', icon: 'time-outline' },
 ];
 
 function formatDate(value) {
-  if (!value) {
-    return 'Recently submitted';
-  }
-
+  if (!value) return 'Recently submitted';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Recently submitted';
-  }
-
+  if (Number.isNaN(date.getTime())) return 'Recently submitted';
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -45,15 +40,9 @@ function formatDate(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) {
-    return 'Recently submitted';
-  }
-
+  if (!value) return 'Recently submitted';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Recently submitted';
-  }
-
+  if (Number.isNaN(date.getTime())) return 'Recently submitted';
   return date.toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -64,26 +53,11 @@ function formatDateTime(value) {
 }
 
 function ratingLabel(rating) {
-  if (rating >= 5) {
-    return 'Excellent';
-  }
-
-  if (rating >= 4) {
-    return 'Good';
-  }
-
-  if (rating >= 3) {
-    return 'Average';
-  }
-
-  if (rating >= 2) {
-    return 'Needs Improvement';
-  }
-
-  if (rating >= 1) {
-    return 'Poor';
-  }
-
+  if (rating >= 5) return 'Excellent';
+  if (rating >= 4) return 'Good';
+  if (rating >= 3) return 'Average';
+  if (rating >= 2) return 'Needs Improvement';
+  if (rating >= 1) return 'Poor';
   return 'Select a rating';
 }
 
@@ -107,12 +81,10 @@ export default function StudentFeedbackScreen({ navigation }) {
     return Boolean(token) && rating >= 1 && commentLength >= 5 && !submitting;
   }, [commentLength, rating, submitting, token]);
 
-  const hasExistingFeedback = Boolean(myFeedback?.id);
+  const hasExistingFeedback = Boolean(myFeedback?.id || myFeedback?._id);
 
   const loadMyFeedback = useCallback(async () => {
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     setLoadingHistory(true);
     try {
@@ -146,7 +118,7 @@ export default function StudentFeedbackScreen({ navigation }) {
         setFeedbackHistory([]);
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Failed to load previous feedback');
+      setErrorMessage(error.message || 'Failed to load feedback');
     } finally {
       setLoadingHistory(false);
     }
@@ -163,7 +135,7 @@ export default function StudentFeedbackScreen({ navigation }) {
     setSuccessMessage('');
 
     if (rating < 1 || rating > 5) {
-      setErrorMessage('Please select a rating from 1 to 5');
+      setErrorMessage('Please select a rating');
       return;
     }
 
@@ -184,7 +156,7 @@ export default function StudentFeedbackScreen({ navigation }) {
         },
       });
 
-      setSuccessMessage(response.message || (hasExistingFeedback ? 'Feedback updated successfully' : 'Feedback submitted successfully'));
+      Alert.alert('Success', hasExistingFeedback ? 'Feedback updated!' : 'Feedback submitted!');
       await loadMyFeedback();
     } catch (error) {
       setErrorMessage(error.message || 'Failed to save feedback');
@@ -195,28 +167,21 @@ export default function StudentFeedbackScreen({ navigation }) {
 
   const handleDeleteFeedback = useCallback(() => {
     Alert.alert(
-      'Delete feedback',
-      'Are you sure you want to delete your feedback?',
+      'Delete Feedback',
+      'Are you sure you want to remove your feedback?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            setErrorMessage('');
-            setSuccessMessage('');
             setDeleting(true);
-
             try {
-              const response = await apiRequest('/feedback/mine', {
+              await apiRequest('/feedback/mine', {
                 method: 'DELETE',
                 token,
               });
-
-              setSuccessMessage(response.message || 'Feedback deleted successfully');
+              Alert.alert('Deleted', 'Your feedback has been removed.');
               await loadMyFeedback();
             } catch (error) {
               setErrorMessage(error.message || 'Failed to delete feedback');
@@ -230,192 +195,185 @@ export default function StudentFeedbackScreen({ navigation }) {
   }, [loadMyFeedback, token]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>App Feedback</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardWrap}
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.9}>
-              <Ionicons name="arrow-back" size={18} color="#111827" />
-            </TouchableOpacity>
-
-            <View style={styles.headerTextWrap}>
-              <Text style={styles.title}>Overall App Feedback</Text>
-              <Text style={styles.subtitle}>Tell us how the SCMS mobile experience feels for you.</Text>
-            </View>
-          </View>
-
-          <View style={styles.studentBadge}>
-            <Ionicons name="person-circle-outline" size={15} color="#1f2937" />
-            <Text style={styles.studentBadgeText}>
-              {`${String(user?.firstName || '').trim()} ${String(user?.lastName || '').trim()}`.trim() || 'Student'}
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <LinearGradient
+            colors={['#e53935', '#b71c1c']}
+            style={styles.heroBanner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="chatbubbles-outline" size={40} color="rgba(255,255,255,0.3)" style={styles.bannerIcon} />
+            <Text style={styles.bannerTitle}>Share Your Thoughts</Text>
+            <Text style={styles.bannerSubtitle}>
+              Your feedback helps us create a better experience for all students.
             </Text>
-          </View>
+          </LinearGradient>
 
-          <FeedbackDistributionCard
-            title="Ratings and reviews"
-            subtitle="Overall app feedback from all student users"
-            averageRating={overallSummary?.averageRating}
-            totalRatings={overallSummary?.totalFeedback}
-            distribution={overallSummary?.feedbackDistribution}
-          />
-
-          <View style={styles.formCard}>
-            <Text style={styles.sectionTitle}>Rate the app</Text>
-            <Text style={styles.hintText}>
-              {hasExistingFeedback
-                ? 'You can update or delete your existing feedback.'
-                : '1 means poor, 5 means excellent.'}
-            </Text>
-
-            <View style={styles.starRow}>
-              {STAR_VALUES.map((value) => {
-                const active = value <= rating;
-                return (
-                  <TouchableOpacity
-                    key={value}
-                    style={[styles.starButton, active ? styles.starButtonActive : null]}
-                    onPress={() => setRating(value)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons
-                      name={active ? 'star' : 'star-outline'}
-                      size={24}
-                      color={active ? '#f59e0b' : '#9ca3af'}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={styles.ratingStatus}>{ratingLabel(rating)}</Text>
-
-            <Text style={styles.sectionTitle}>Your feedback</Text>
-            <TextInput
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Share your overall thoughts about this app..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              maxLength={1200}
-              style={styles.commentInput}
-              textAlignVertical="top"
-            />
-
-            <Text style={styles.counterText}>{commentLength}/1200 characters</Text>
-
-            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-            {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
-
-            <TouchableOpacity
-              style={[styles.submitButton, !canSave ? styles.submitButtonDisabled : null]}
-              onPress={handleSaveFeedback}
-              disabled={!canSave}
-              activeOpacity={0.9}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <>
-                  <Ionicons name={hasExistingFeedback ? 'create-outline' : 'send-outline'} size={16} color="#ffffff" />
-                  <Text style={styles.submitButtonText}>{hasExistingFeedback ? 'Update Feedback' : 'Submit Feedback'}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {hasExistingFeedback ? (
-              <TouchableOpacity
-                style={[styles.deleteButton, deleting ? styles.deleteButtonDisabled : null]}
-                onPress={handleDeleteFeedback}
-                disabled={deleting}
-                activeOpacity={0.9}
-              >
-                {deleting ? (
-                  <ActivityIndicator color="#dc2626" />
-                ) : (
-                  <>
-                    <Ionicons name="trash-outline" size={16} color="#dc2626" />
-                    <Text style={styles.deleteButtonText}>Delete Feedback</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          <View style={styles.historyCard}>
-            <View style={styles.historyHeaderRow}>
-              <Text style={styles.sectionTitle}>My Feedback</Text>
-              <Text style={styles.historyMeta}>{hasExistingFeedback ? '1 record' : '0 records'}</Text>
-            </View>
-
-            {loadingHistory ? (
-              <View style={styles.historyLoaderWrap}>
-                <ActivityIndicator size="small" color="#e53935" />
-                <Text style={styles.historyLoaderText}>Loading feedback...</Text>
-              </View>
-            ) : !hasExistingFeedback ? (
-              <View style={styles.emptyHistoryState}>
-                <Ionicons name="chatbox-ellipses-outline" size={26} color="#94a3b8" />
-                <Text style={styles.emptyHistoryTitle}>No feedback yet</Text>
-                <Text style={styles.emptyHistoryText}>You can submit only one feedback. You can edit or delete it anytime.</Text>
-              </View>
-            ) : (
-              <FeedbackCard
-                rating={myFeedback.rating}
-                comment={myFeedback.comment}
-                category={`Updated ${formatDate(myFeedback.updatedAt || myFeedback.createdAt)}`}
+          <View style={styles.contentWrap}>
+            {/* Summary Card */}
+            <View style={styles.mainCard}>
+              <FeedbackDistributionCard
+                averageRating={overallSummary?.averageRating}
+                totalRatings={overallSummary?.totalFeedback}
+                distribution={overallSummary?.feedbackDistribution}
               />
-            )}
-          </View>
-
-          <View style={styles.communityCard}>
-            <View style={styles.communityHeaderRow}>
-              <Text style={styles.sectionTitle}>Feedback History</Text>
-              <Text style={styles.communityMeta}>{feedbackHistory.length} records</Text>
             </View>
 
-            <View style={styles.sortChipWrap}>
-              {SORT_OPTIONS.map((option) => {
-                const active = sortOption === option.id;
-                return (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[styles.sortChip, active ? styles.sortChipActive : null]}
-                    onPress={() => setSortOption(option.id)}
-                    activeOpacity={0.9}
+            {/* Rating Form Card */}
+            <View style={styles.formCard}>
+              <View style={styles.formHeader}>
+                <Text style={styles.sectionTitle}>{hasExistingFeedback ? 'Update Your Rating' : 'Rate Your Experience'}</Text>
+                <View style={styles.userBadge}>
+                  <Ionicons name="person" size={12} color="#64748b" />
+                  <Text style={styles.userBadgeText}>{user?.firstName}</Text>
+                </View>
+              </View>
+
+              <View style={styles.starContainer}>
+                {STAR_VALUES.map((value) => {
+                  const active = value <= rating;
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      style={[styles.starBox, active && styles.starBoxActive]}
+                      onPress={() => setRating(value)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={active ? 'star' : 'star-outline'}
+                        size={28}
+                        color={active ? '#f59e0b' : '#94a3b8'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[styles.ratingHint, rating > 0 && { color: '#b45309' }]}>
+                {ratingLabel(rating)}
+              </Text>
+
+              <View style={styles.inputWrap}>
+                <Text style={styles.inputLabel}>Detailed Feedback</Text>
+                <TextInput
+                  style={styles.textArea}
+                  value={comment}
+                  onChangeText={setComment}
+                  placeholder="Tell us what you like or what we can improve..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  maxLength={1200}
+                  textAlignVertical="top"
+                />
+                <Text style={[styles.charCount, commentLength < 5 && { color: '#ef4444' }]}>
+                  {commentLength} / 1200 chars
+                </Text>
+              </View>
+
+              {errorMessage ? <Text style={styles.errorLabel}>{errorMessage}</Text> : null}
+
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[styles.submitBtn, !canSave && styles.submitBtnDisabled]}
+                  onPress={handleSaveFeedback}
+                  disabled={!canSave}
+                >
+                  <LinearGradient
+                    colors={['#e53935', '#b71c1c']}
+                    style={styles.btnGradient}
                   >
-                    <Text style={[styles.sortChipText, active ? styles.sortChipTextActive : null]}>{option.label}</Text>
+                    {submitting ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name={hasExistingFeedback ? "refresh" : "send"} size={18} color="#ffffff" />
+                        <Text style={styles.btnText}>{hasExistingFeedback ? 'Update Feedback' : 'Submit Feedback'}</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {hasExistingFeedback && (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={handleDeleteFeedback}
+                    disabled={deleting}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                    <Text style={styles.deleteBtnText}>Remove</Text>
                   </TouchableOpacity>
-                );
-              })}
+                )}
+              </View>
             </View>
+
+            {/* History Section */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitleMain}>Community Feedback</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{feedbackHistory.length}</Text>
+              </View>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
+              {SORT_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.sortChip, sortOption === opt.id && styles.sortChipActive]}
+                  onPress={() => setSortOption(opt.id)}
+                >
+                  <Ionicons 
+                    name={opt.icon} 
+                    size={14} 
+                    color={sortOption === opt.id ? "#ffffff" : "#64748b"} 
+                  />
+                  <Text style={[styles.sortChipText, sortOption === opt.id && styles.sortChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             {loadingHistory ? (
-              <View style={styles.historyLoaderWrap}>
-                <ActivityIndicator size="small" color="#e53935" />
-                <Text style={styles.historyLoaderText}>Loading feedback history...</Text>
+              <View style={styles.loaderWrap}>
+                <ActivityIndicator color="#e53935" size="large" />
+                <Text style={styles.loaderText}>Syncing feedback...</Text>
               </View>
             ) : feedbackHistory.length === 0 ? (
-              <View style={styles.communityEmptyWrap}>
-                <Ionicons name="chatbox-ellipses-outline" size={24} color="#94a3b8" />
-                <Text style={styles.communityEmptyText}>No feedback history available.</Text>
+              <View style={styles.emptyWrap}>
+                <Ionicons name="chatbubble-ellipses-outline" size={40} color="#cbd5e1" />
+                <Text style={styles.emptyText}>No community feedback yet.</Text>
               </View>
             ) : (
-              <View style={styles.communityList}>
-                {feedbackHistory.map((item, index) => (
-                  <View key={item.id || `${item.studentName}-${index}`} style={styles.communityItem}>
-                    <View style={styles.communityTopRow}>
-                      <Text style={styles.communityName}>{item.studentName || 'Student'}</Text>
-                      <View style={styles.communityRatingPill}>
-                        <Ionicons name="star" size={12} color="#d97706" />
-                        <Text style={styles.communityRatingText}>{Number(item.rating || 0)} / 5</Text>
+              <View style={styles.historyList}>
+                {feedbackHistory.map((item, idx) => (
+                  <View key={item.id || idx} style={styles.historyCard}>
+                    <View style={styles.historyCardTop}>
+                      <View style={styles.historyAvatar}>
+                        <Text style={styles.avatarText}>{item.studentName?.charAt(0) || 'S'}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.historyName}>{item.studentName || 'Anonymous Student'}</Text>
+                        <Text style={styles.historyDate}>{formatDateTime(item.updatedAt || item.createdAt)}</Text>
+                      </View>
+                      <View style={styles.historyRating}>
+                        <Ionicons name="star" size={14} color="#f59e0b" />
+                        <Text style={styles.historyRatingText}>{item.rating}/5</Text>
                       </View>
                     </View>
-
-                    <Text style={styles.communityComment}>{item.comment || 'No comment'}</Text>
-                    <Text style={styles.communityTime}>{formatDateTime(item.updatedAt || item.createdAt)}</Text>
+                    <Text style={styles.historyComment}>{item.comment}</Text>
                   </View>
                 ))}
               </View>
@@ -428,344 +386,335 @@ export default function StudentFeedbackScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: '#f0f2f6',
+    backgroundColor: '#e53935',
   },
-  keyboardWrap: {
-    flex: 1,
-  },
-  scrollWrap: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 26,
-    gap: 12,
-  },
-  headerRow: {
+  header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#dbe2ec',
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  headerTextWrap: {
-    flex: 1,
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
   },
-  title: {
-    color: '#111827',
-    fontSize: 20,
+  scrollContent: {
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    minHeight: '100%',
+    marginTop: 10,
+  },
+  heroBanner: {
+    padding: 24,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingBottom: 40,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  bannerIcon: {
+    position: 'absolute',
+    right: -10,
+    top: -10,
+    transform: [{ rotate: '-15deg' }],
+  },
+  bannerTitle: {
+    fontSize: 22,
     fontWeight: '900',
+    color: '#ffffff',
+    marginBottom: 8,
   },
-  subtitle: {
-    marginTop: 4,
-    color: '#6b7280',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
+  bannerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 20,
+    fontWeight: '500',
   },
-  studentBadge: {
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  contentWrap: {
+    marginTop: -24,
+    paddingHorizontal: 20,
+  },
+  mainCard: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  studentBadgeText: {
-    color: '#1f2937',
-    fontSize: 12,
-    fontWeight: '700',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 20,
   },
   formCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 24,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  userBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 6,
+  },
+  userBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  starContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  starBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starBoxActive: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fef3c7',
+  },
+  ratingHint: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  inputWrap: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 10,
+  },
+  textArea: {
+    backgroundColor: '#f8fafc',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
     padding: 14,
+    fontSize: 14,
+    color: '#1e293b',
+    minHeight: 120,
+    fontWeight: '500',
   },
-  sectionTitle: {
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '900',
+  charCount: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '700',
+    textAlign: 'right',
+    marginTop: 6,
   },
-  hintText: {
-    marginTop: 3,
-    color: '#6b7280',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  starRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  starButton: {
-    width: 48,
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#dbe2ec',
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  starButtonActive: {
-    borderColor: '#f59e0b',
-    backgroundColor: '#fffbeb',
-  },
-  ratingStatus: {
-    color: '#b45309',
+  errorLabel: {
+    color: '#ef4444',
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 12,
-  },
-  commentInput: {
-    minHeight: 130,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#fbfcfe',
-    color: '#111827',
-    fontSize: 14,
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  counterText: {
-    marginTop: 6,
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'right',
-  },
-  errorText: {
-    marginTop: 8,
-    color: '#b91c1c',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  successText: {
-    marginTop: 8,
-    color: '#166534',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  submitButton: {
-    marginTop: 12,
-    borderRadius: 12,
-    backgroundColor: '#e53935',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 13,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#f3a6a4',
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  deleteButton: {
-    marginTop: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    backgroundColor: '#fff1f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 12,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.65,
-  },
-  deleteButtonText: {
-    color: '#dc2626',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  historyCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
-    padding: 14,
-  },
-  historyHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  historyMeta: {
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  historyLoaderWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-  },
-  historyLoaderText: {
-    marginTop: 7,
-    color: '#64748b',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptyHistoryState: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#fbfcfe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 10,
-  },
-  emptyHistoryTitle: {
-    marginTop: 8,
-    color: '#334155',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  emptyHistoryText: {
-    marginTop: 4,
-    color: '#64748b',
-    fontSize: 12,
-    fontWeight: '600',
     textAlign: 'center',
   },
-  communityCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
-    padding: 14,
+  buttonGroup: {
+    gap: 12,
   },
-  communityHeaderRow: {
+  submitBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  btnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 10,
   },
-  communityMeta: {
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+  btnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
   },
-  sortChipWrap: {
+  deleteBtn: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  deleteBtnText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  sectionTitleMain: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1e293b',
+  },
+  countBadge: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#e53935',
+  },
+  sortScroll: {
+    marginBottom: 20,
   },
   sortChip: {
-    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: '#d6dfeb',
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderColor: '#e2e8f0',
+    gap: 6,
   },
   sortChipActive: {
-    borderColor: '#111827',
-    backgroundColor: '#111827',
+    backgroundColor: '#e53935',
+    borderColor: '#e53935',
   },
   sortChipText: {
-    color: '#475569',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
+    color: '#64748b',
   },
   sortChipTextActive: {
     color: '#ffffff',
   },
-  communityEmptyWrap: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#fbfcfe',
+  loaderWrap: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  emptyWrap: {
+    paddingVertical: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 22,
-    paddingHorizontal: 10,
   },
-  communityEmptyText: {
-    marginTop: 8,
-    color: '#64748b',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#94a3b8',
+    fontWeight: '600',
   },
-  communityList: {
-    gap: 9,
+  historyList: {
+    gap: 16,
+    paddingBottom: 40,
   },
-  communityItem: {
-    borderRadius: 12,
+  historyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#dce6f1',
-    backgroundColor: '#f8fafc',
-    padding: 10,
+    borderColor: '#e2e8f0',
   },
-  communityTopRow: {
+  historyCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-    gap: 8,
+    marginBottom: 12,
+    gap: 12,
   },
-  communityName: {
-    color: '#0f172a',
-    fontSize: 13,
-    fontWeight: '900',
-    flex: 1,
+  historyAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  communityRatingPill: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    backgroundColor: '#fff7ed',
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#e53935',
+  },
+  historyName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  historyDate: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  historyRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 8,
+    gap: 4,
   },
-  communityRatingText: {
-    marginLeft: 4,
-    color: '#7c2d12',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  communityComment: {
-    color: '#334155',
+  historyRatingText: {
     fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '600',
+    fontWeight: '800',
+    color: '#b45309',
   },
-  communityTime: {
-    marginTop: 6,
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '600',
+  historyComment: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
+    fontWeight: '500',
   },
 });
