@@ -1,12 +1,12 @@
-# SCMS: Student Concern Management System 🎓🛡️
+# SCMS: Student Concern Management System 
 
 A comprehensive, multi-role mobile ecosystem built with the **MERN Stack** (MongoDB, Express, React Native, Node.js) to streamline communication between students and academic administration. SCMS ensures that student issues—from academic support to medical concerns—are tracked, analyzed, and resolved with transparency and speed.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### 👤 Student Features
+### Student Features
 *   **Secure Authentication**: Register and login with verified student credentials.
 *   **Concern Submission**: Submit academic, financial, or personal concerns with rich descriptions.
 *   **Medical Triage**: Special "Consulting Support" track for medical issues, allowing secure uploads of medical reports.
@@ -14,13 +14,13 @@ A comprehensive, multi-role mobile ecosystem built with the **MERN Stack** (Mong
 *   **Personalized Notifications**: Receive in-app alerts and branded emails for status updates and admin replies.
 *   **Feedback Loop**: Rate the resolution of your concerns to help improve campus services.
 
-### 💼 Admin & Consulter Features
+### Admin & Consulter Features
 *   **Unified Dashboard**: Centralized view of all incoming concerns categorized by type and priority.
 *   **Medical Report Viewer**: Specialized access for Consulters to review health documentation securely.
 *   **Interactive Triage**: Mark concerns as "Read" (Reviewing) and provide direct replies to students.
 *   **Resolution Management**: Close issues with detailed responses that are instantly synced to the student.
 
-### 👑 Owner/Executive Features
+### Owner/Executive Features
 *   **Semantic Analytics**: High-level insights into concern trends and department performance.
 *   **Broadcast System**: Send global "Notices" and announcements to all student feeds simultaneously.
 *   **Advanced Reporting**: Generate professional PDF/Excel reports for institutional audits.
@@ -28,7 +28,7 @@ A comprehensive, multi-role mobile ecosystem built with the **MERN Stack** (Mong
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer | Technologies |
 | :--- | :--- |
@@ -40,7 +40,7 @@ A comprehensive, multi-role mobile ecosystem built with the **MERN Stack** (Mong
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```bash
 SCMS-Mobile-App/
@@ -62,7 +62,7 @@ SCMS-Mobile-App/
 
 ---
 
-## ⚙️ Setup & Installation
+## Setup & Installation
 
 ### Prerequisites
 *   Node.js (v16+)
@@ -92,11 +92,10 @@ SCMS-Mobile-App/
 
 ---
 
-## 🔒 Security & Privacy
+## Security & Privacy
 SCMS prioritizes student data. Medical reports are stored in a dedicated secure directory, and all personal information is transmitted via encrypted API calls with JWT-based authorization.
 
 ---
 
-## 📄 License
+## License
 © 2026 AKB Creative Solutions. All rights reserved.
-Internal Institutional Use Only.
