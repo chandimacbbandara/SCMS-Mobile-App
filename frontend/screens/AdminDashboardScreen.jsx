@@ -388,13 +388,15 @@ export default function AdminDashboardScreen({ navigation }) {
                   ) : (
                     <View style={concernsStyles.listWrap}>
                       {concerns.map((concern, index) => (
-                        <TouchableOpacity
+                        <View
                           key={concern._id || index}
                           style={concernsStyles.concernCard}
-                          onPress={() => navigation.navigate('AdminConcernDetail', { concern })}
-                          activeOpacity={0.7}
                         >
-                          <View style={concernsStyles.cardContent}>
+                          <TouchableOpacity
+                            style={concernsStyles.cardContent}
+                            onPress={() => navigation.navigate('AdminConcernDetail', { concern })}
+                            activeOpacity={0.7}
+                          >
                             <View style={concernsStyles.headerRow}>
                               <View style={concernsStyles.studentInfo}>
                                 <View style={concernsStyles.avatar}>
@@ -407,8 +409,7 @@ export default function AdminDashboardScreen({ navigation }) {
                                 </View>
                                 <View style={concernsStyles.studentMeta}>
                                   <Text style={concernsStyles.studentName}>
-                                    {`${concern.studentId?.firstName || ''} ${concern.studentId?.lastName || ''}`
-                                      .trim() || 'Unknown'}
+                                    {`${concern.studentId?.firstName || ''} ${concern.studentId?.lastName || ''}`.trim() || 'Unknown'}
                                   </Text>
                                   <Text style={concernsStyles.studentId}>{concern.studentId?.studentId || 'ID: Unknown'}</Text>
                                 </View>
@@ -417,12 +418,17 @@ export default function AdminDashboardScreen({ navigation }) {
                                 style={[
                                   concernsStyles.statusBadge,
                                   {
-                                    backgroundColor: getStatusColor(concern.status) + '20',
-                                    borderColor: getStatusColor(concern.status),
+                                    backgroundColor: getStatusColor((concern.status || 'pending').toLowerCase()) + '20',
+                                    borderColor: getStatusColor((concern.status || 'pending').toLowerCase()),
                                   },
                                 ]}
                               >
-                                <Text style={[concernsStyles.statusText, { color: getStatusColor(concern.status) }]}>
+                                <Text
+                                  style={[
+                                    concernsStyles.statusText,
+                                    { color: getStatusColor((concern.status || 'pending').toLowerCase()) },
+                                  ]}
+                                >
                                   {String(concern.status || 'pending').toUpperCase()}
                                 </Text>
                               </View>
@@ -432,43 +438,43 @@ export default function AdminDashboardScreen({ navigation }) {
                             <Text style={concernsStyles.description} numberOfLines={2}>
                               {concern.description}
                             </Text>
+                          </TouchableOpacity>
 
-                            <View style={concernsStyles.footerRow}>
-                              <View style={concernsStyles.dateInfo}>
-                                <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
-                                <Text style={concernsStyles.dateText}>{formatDate(concern.createdAt)}</Text>
-                              </View>
+                          <View style={concernsStyles.footerRow}>
+                            <View style={concernsStyles.dateInfo}>
+                              <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
+                              <Text style={concernsStyles.dateText}>{formatDate(concern.createdAt)}</Text>
+                            </View>
 
-                              <View style={concernsStyles.footerActions}>
-                                {concern.status === 'pending' && (
-                                  <TouchableOpacity
-                                    style={[
-                                      concernsStyles.markReadBtn,
-                                      markReadLoadingId === concern._id && { opacity: 0.6 },
-                                    ]}
-                                    disabled={markReadLoadingId === concern._id}
-                                    onPress={() => handleMarkAsRead(concern._id)}
-                                    activeOpacity={0.8}
-                                  >
-                                    {markReadLoadingId === concern._id ? (
-                                      <ActivityIndicator size="small" color="#3b82f6" />
-                                    ) : (
-                                      <Ionicons name="eye-outline" size={14} color="#3b82f6" />
-                                    )}
-                                    <Text style={concernsStyles.markReadText}>Mark as read</Text>
-                                  </TouchableOpacity>
-                                )}
+                            <View style={concernsStyles.footerActions}>
+                              {String(concern.status || 'pending').toLowerCase() === 'pending' && (
+                                <TouchableOpacity
+                                  style={[
+                                    concernsStyles.markReadBtn,
+                                    markReadLoadingId === concern._id && { opacity: 0.6 },
+                                  ]}
+                                  disabled={markReadLoadingId === concern._id}
+                                  onPress={() => handleMarkAsRead(concern._id)}
+                                  activeOpacity={0.8}
+                                >
+                                  {markReadLoadingId === concern._id ? (
+                                    <ActivityIndicator size="small" color="#3b82f6" />
+                                  ) : (
+                                    <Ionicons name="eye-outline" size={14} color="#3b82f6" />
+                                  )}
+                                  <Text style={concernsStyles.markReadText}>Mark as read</Text>
+                                </TouchableOpacity>
+                              )}
 
-                                {concern.adminReply && (
-                                  <View style={concernsStyles.replyBadge}>
-                                    <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-                                    <Text style={concernsStyles.replyText}>Replied</Text>
-                                  </View>
-                                )}
-                              </View>
+                              {concern.adminReply && (
+                                <View style={concernsStyles.replyBadge}>
+                                  <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+                                  <Text style={concernsStyles.replyText}>Replied</Text>
+                                </View>
+                              )}
                             </View>
                           </View>
-                        </TouchableOpacity>
+                        </View>
                       ))}
                     </View>
                   )}
@@ -990,6 +996,8 @@ const concernsStyles = StyleSheet.create({
     marginBottom: 8,
   },
   footerRow: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
