@@ -18,6 +18,7 @@ import OwnerAdminWorkspaceScreen from '../screens/OwnerAdminWorkspaceScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminConcernDetailScreen from '../screens/AdminConcernDetailScreen';
 import ConsulterDashboardScreen from '../screens/ConsulterDashboardScreen';
+import StudentSettingsScreen from '../screens/StudentSettingsScreen';
 import FeedbackInsightsScreen from '../screens/FeedbackInsightsScreen';
 
 import { useAuth } from '../context/AuthContext';
@@ -392,6 +393,13 @@ function AuthRootNavigator() {
           headerStyle: { backgroundColor: '#05070a' },
           headerTintColor: '#fff',
           headerBackTitle: 'Back',
+        }}
+      />
+      <RootStack.Screen 
+        name="StudentSettings" 
+        component={StudentSettingsScreen} 
+        options={{
+          headerShown: false,
         }}
       />
     </RootStack.Navigator>

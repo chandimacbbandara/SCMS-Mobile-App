@@ -63,6 +63,10 @@ function sanitizeUser(student) {
     studentId: student.studentId,
     role: student.role,
     studentIdPhoto: student.studentIdPhoto,
+    age: student.age,
+    mobileNumber: student.mobileNumber,
+    address: student.address,
+    gender: student.gender,
   };
 }
 
@@ -1095,6 +1099,40 @@ async function resetForgotPassword(req, res) {
   }
 }
 
+async function updateStudentProfile(req, res) {
+  try {
+    const studentId = req.user.id;
+    const { firstName, lastName, age, mobileNumber, address, gender } = req.body;
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Student not found' });
+    }
+
+    if (firstName) student.firstName = String(firstName).trim();
+    if (lastName) student.lastName = String(lastName).trim();
+    if (age !== undefined) student.age = Number(age);
+    if (mobileNumber !== undefined) student.mobileNumber = String(mobileNumber).trim();
+    if (address !== undefined) student.address = String(address).trim();
+    if (gender) student.gender = gender;
+
+    if (req.file) {
+      student.studentIdPhoto = `/uploads/${req.file.filename}`;
+    }
+
+    await student.save();
+
+    return res.json({
+      status: 'ok',
+      message: 'Profile updated successfully',
+      user: sanitizeUser(student),
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ status: 'error', message: 'Failed to update profile' });
+  }
+}
+
 async function getMe(req, res) {
   return res.json({
     status: 'ok',
@@ -1158,7 +1196,7 @@ async function getOwnerDashboard(req, res) {
   }
 }
 
-function uploadStudentPhoto(req, res, next) {
+async function uploadStudentPhoto(req, res, next) {
   if (!req.file) {
     return next();
   }
@@ -1193,6 +1231,7 @@ module.exports = {
   verifyForgotCode,
   resetForgotPassword,
   getMe,
+  updateStudentProfile,
   getOwnerDashboard,
   getAdminDashboard,
   getConsulterDashboard,

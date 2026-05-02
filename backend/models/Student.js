@@ -43,19 +43,15 @@ const studentSchema = new mongoose.Schema(
       min: 16,
       max: 100,
     },
-    gpa: {
-      type: Number,
-      min: 0,
-      max: 4.0,
+    mobileNumber: {
+      type: String,
     },
-    year: {
-      type: Number,
-      min: 1,
-      max: 5,
+    address: {
+      type: String,
     },
     gender: {
       type: String,
-      enum: ['M', 'F', 'Other', 'Prefer not to say'],
+      enum: ['M', 'F'],
     },
     // Optional: Track concerns submitted by student
     concerns: [{

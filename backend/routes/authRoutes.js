@@ -20,6 +20,7 @@ const {
   getOwnerDashboard,
   getAdminDashboard,
   getConsulterDashboard,
+  updateStudentProfile,
   uploadStudentPhoto,
 } = require('../controllers/authController');
 const { protect, requireOwner, requireAdmin, requireConsulter } = require('../middleware/authMiddleware');
@@ -49,6 +50,7 @@ router.post('/register', upload.single('studentIdPhoto'), uploadStudentPhoto, re
 
 router.post('/login', login);
 router.get('/me', protect, getMe);
+router.patch('/profile', protect, upload.single('studentIdPhoto'), uploadStudentPhoto, updateStudentProfile);
 router.get('/owner/dashboard', protect, requireOwner, getOwnerDashboard);
 router.post('/owner/admin/send-code', protect, requireOwner, sendOwnerAdminCode);
 router.post('/owner/admin/verify-code', protect, requireOwner, verifyOwnerAdminCode);

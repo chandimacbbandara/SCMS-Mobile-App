@@ -303,23 +303,6 @@ export default function StudentDashboardScreen({ navigation }) {
 
   const avatarText = getInitials(user?.firstName, user?.lastName, user?.email);
   const studentPhotoUri = resolveAssetUrl(apiBaseUrl, user?.studentIdPhoto);
-  const memberSince = formatMemberSince(user?.createdAt);
-
-  const profileCompletion = useMemo(() => {
-    const profileChecks = [
-      user?.firstName,
-      user?.lastName,
-      user?.email,
-      user?.studentId,
-      user?.studentIdPhoto,
-    ];
-
-    const completed = profileChecks.filter((value) => String(value || '').trim() !== '').length;
-    return Math.round((completed / profileChecks.length) * 100);
-  }, [user?.email, user?.firstName, user?.lastName, user?.studentId, user?.studentIdPhoto]);
-
-  const idPhotoStatus = user?.studentIdPhoto ? 'Uploaded' : 'Missing';
-
   const unreadCount = useMemo(() => {
     return notifications.filter((n) => !n.isRead).length;
   }, [notifications]);
@@ -365,6 +348,7 @@ export default function StudentDashboardScreen({ navigation }) {
             <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleRefresh}>
               <Ionicons name="refresh-outline" size={18} color="#374151" />
             </TouchableOpacity>
+
             <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.9}>
               <Ionicons name="log-out-outline" size={16} color="#ffffff" />
               <Text style={styles.logoutText}>Logout</Text>
@@ -390,6 +374,13 @@ export default function StudentDashboardScreen({ navigation }) {
               <Text style={styles.heroGreeting}>Welcome back,</Text>
               <Text style={styles.heroNameLarge}>{displayName}</Text>
             </View>
+            <TouchableOpacity 
+              style={styles.heroSettingsButton} 
+              onPress={() => navigation.navigate('StudentSettings')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={22} color="#ffffff" />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -781,41 +772,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
   },
-  statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  statusCard: {
-    flex: 1,
-    minWidth: 102,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 120,
-  },
-  statusValue: {
-    fontSize: 20,
-    color: '#111827',
-    fontWeight: '900',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statusLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.55,
+  heroSettingsButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   panelCard: {
     borderRadius: 24,
@@ -1208,39 +1168,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  mobileBottomBar: {
-    marginBottom: 2,
-  },
-  bottomTabsWrap: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    padding: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bottomTab: {
-    flex: 1,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    gap: 5,
-  },
-  bottomTabActive: {
-    backgroundColor: '#fff0f0',
-  },
-  bottomTabText: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bottomTabTextActive: {
-    color: '#e53935',
   },
 });
