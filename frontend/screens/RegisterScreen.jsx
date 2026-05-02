@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,7 +19,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 
-const sideLogo = require('../images/img4.jpeg');
+const sideLogo = require('../images/img2.jpeg');
 
 function passwordRules(password) {
   return {
@@ -44,6 +45,20 @@ export default function RegisterScreen({ navigation }) {
   function goGuestLogin() {
     navigation.navigate('GuestTabs', { screen: 'Login' });
   }
+
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -10, duration: 2000, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+
+    Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+  }, []);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -200,14 +215,23 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <LinearGradient
-            colors={['#ef5350', '#e53935', '#b71c1c']}
+            colors={['#e53935', '#b71c1c', '#7f1d1d']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerCard}
           >
-            <Image source={sideLogo} style={styles.brandLogo} resizeMode="contain" />
-            <Text style={styles.headerTitle}>Create Student Account</Text>
-            <Text style={styles.headerSub}>Verify your email and register with your student details.</Text>
+            {/* Decorative elements */}
+            <View style={[styles.decorCircle, { top: -20, right: -20, width: 100, height: 100, opacity: 0.1 }]} />
+            <View style={[styles.decorCircle, { bottom: -30, left: -10, width: 80, height: 80, opacity: 0.05 }]} />
+
+            <Animated.View style={{ transform: [{ translateY: floatAnim }], opacity: fadeAnim }}>
+              <Image source={sideLogo} style={styles.brandLogo} resizeMode="contain" />
+            </Animated.View>
+            
+            <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
+              <Text style={styles.headerTitle}>Create Student Account</Text>
+              <Text style={styles.headerSub}>Verify your email and register with your student details.</Text>
+            </Animated.View>
           </LinearGradient>
 
           {!!generalError && (
@@ -404,16 +428,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   headerCard: {
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    marginBottom: 10,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    marginBottom: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    elevation: 8,
+    shadowColor: '#e53935',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    alignItems: 'center',
+  },
+  decorCircle: {
+    position: 'absolute',
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
   },
   brandLogo: {
-    width: 98,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
+    width: 80,
+    height: 80,
     marginBottom: 12,
   },
   headerTitle: {
@@ -421,12 +456,14 @@ const styles = StyleSheet.create({
     fontSize: 27,
     fontWeight: '900',
     marginBottom: 3,
+    textAlign: 'center',
   },
   headerSub: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: 13,
     lineHeight: 20,
     fontWeight: '600',
+    textAlign: 'center',
   },
   errorBanner: {
     flexDirection: 'row',
