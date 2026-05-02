@@ -239,7 +239,7 @@ const StudentConcernScreen = ({ navigation, route }) => {
                 setConcernType('Normal Concern');
                 setGenre('Academic Support and Resources');
                 setShowMedicalInfo(false);
-                navigation.goBack();
+                navigation.navigate('ConcernHistory');
               },
             },
           ]

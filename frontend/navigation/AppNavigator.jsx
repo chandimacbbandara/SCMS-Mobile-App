@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const StudentConcernStack = createNativeStackNavigator(); // Stack for concern-related screens
+const StudentConcernHistoryStack = createNativeStackNavigator(); // Stack for concern history
 const AdminDashboardStack = createNativeStackNavigator(); // Stack for admin dashboard + concern details
 
 function SplashLoader() {
@@ -76,6 +77,49 @@ function StudentConcernStackNavigator() {
         }}
       />
     </StudentConcernStack.Navigator>
+  );
+}
+
+function StudentConcernHistoryStackNavigator() {
+  return (
+    <StudentConcernHistoryStack.Navigator
+      initialRouteName="ConcernHistory"
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#05070a',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        headerBackTitle: 'Back',
+      }}
+    >
+      <StudentConcernHistoryStack.Screen
+        name="ConcernHistory"
+        component={ConcernHistoryScreen}
+        options={{
+          title: 'My Concerns',
+          headerShown: true,
+        }}
+      />
+      <StudentConcernHistoryStack.Screen
+        name="SubmitConcern"
+        component={StudentConcernScreen}
+        options={{
+          title: 'Submit Concern',
+          headerShown: true,
+        }}
+      />
+      <StudentConcernHistoryStack.Screen
+        name="ConcernDetail"
+        component={ConcernDetailScreen}
+        options={{
+          title: 'Concern Details',
+          headerShown: true,
+        }}
+      />
+    </StudentConcernHistoryStack.Navigator>
   );
 }
 
@@ -203,6 +247,15 @@ function getRoleTabs(role) {
       title: 'Concern',
       activeIcon: 'document-text',
       inactiveIcon: 'document-text-outline',
+    });
+
+    tabs.push({
+      name: 'StudentConcernHistory',
+      component: StudentConcernHistoryStackNavigator,
+      label: 'History',
+      title: 'History',
+      activeIcon: 'time',
+      inactiveIcon: 'time-outline',
     });
   }
 

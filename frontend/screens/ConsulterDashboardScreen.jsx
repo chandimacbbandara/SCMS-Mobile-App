@@ -25,7 +25,7 @@ const STATUS_OPTIONS = [
   { id: 'all', label: 'All Status', color: '#64748b' },
   { id: 'pending', label: 'Pending', color: '#f59e0b' },
   { id: 'reviewing', label: 'Reviewing', color: '#3b82f6' },
-  { id: 'resolved', label: 'Resolved', color: '#10b981' },
+  { id: 'resolved', label: 'Completed', color: '#10b981' },
   { id: 'rejected', label: 'Rejected', color: '#ef4444' },
 ];
 
@@ -53,6 +53,21 @@ function formatTimeNow(date) {
 function getStatusColor(status) {
   const statusObj = STATUS_OPTIONS.find((s) => s.id === status);
   return statusObj?.color || '#64748b';
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'reviewing':
+      return 'Reviewing';
+    case 'resolved':
+      return 'Completed';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return 'Unknown';
+  }
 }
 
 export default function ConsulterDashboardScreen({ navigation }) {
@@ -344,7 +359,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
                     </View>
                     <View style={[concernsStyles.statPill, { borderLeftColor: '#10b981' }]}>
                       <Text style={concernsStyles.statValue}>{stats.resolved}</Text>
-                      <Text style={concernsStyles.statLabel}>Resolved</Text>
+                      <Text style={concernsStyles.statLabel}>Completed</Text>
                     </View>
                   </ScrollView>
 
@@ -426,7 +441,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
                                                 { color: getStatusColor((concern.status || 'pending').toLowerCase()) },
                                               ]}
                                           >
-                                            {String(concern.status || 'pending').toUpperCase()}
+                                              {getStatusLabel(String(concern.status || 'pending').toLowerCase()).toUpperCase()}
                                           </Text>
                                         </View>
                                       </View>

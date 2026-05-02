@@ -9,10 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
+import { getStudentConcerns } from '../lib/api';
 
 function getInitials(firstName, lastName, email) {
   const f = String(firstName || '').trim();
@@ -76,11 +78,75 @@ function formatMemberSince(value) {
   });
 }
 
+function formatConcernDate(value) {
+  if (!value) {
+    return 'Unknown date';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Unknown date';
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function getConcernStatusLabel(status) {
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'reviewing':
+      return 'Reviewing';
+    case 'resolved':
+      return 'Completed';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return 'Unknown';
+  }
+}
+
+function getConcernStatusColor(status) {
+  switch (status) {
+    case 'pending':
+      return '#f59e0b';
+    case 'reviewing':
+      return '#3b82f6';
+    case 'resolved':
+      return '#16a34a';
+    case 'rejected':
+      return '#ef4444';
+    default:
+      return '#94a3b8';
+  }
+}
+
+function getConcernStepIndex(status) {
+  switch (status) {
+    case 'pending':
+      return 0;
+    case 'reviewing':
+      return 1;
+    case 'resolved':
+      return 2;
+    default:
+      return 0;
+  }
+}
+
 export default function StudentDashboardScreen({ navigation }) {
   const { user, logout, apiBaseUrl, refreshMe } = useAuth();
   const [clock, setClock] = useState(getNowParts());
   const [refreshing, setRefreshing] = useState(false);
   const [initialSyncing, setInitialSyncing] = useState(false);
+  const [trackingConcerns, setTrackingConcerns] = useState([]);
+  const [trackingLoading, setTrackingLoading] = useState(true);
+  const [trackingError, setTrackingError] = useState('');
+
+  const studentId = user?.id || user?._id;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -113,16 +179,54 @@ export default function StudentDashboardScreen({ navigation }) {
     };
   }, [refreshMe]);
 
+  const loadConcernTracking = useCallback(
+    async (isRefresh = false) => {
+      if (!studentId) {
+        setTrackingConcerns([]);
+        setTrackingLoading(false);
+        setTrackingError('');
+        return;
+      }
+
+      if (!isRefresh) {
+        setTrackingLoading(true);
+      }
+
+      setTrackingError('');
+
+      try {
+        const response = await getStudentConcerns(studentId);
+        const data = Array.isArray(response.data) ? response.data : [];
+        setTrackingConcerns(data);
+      } catch (error) {
+        setTrackingError(error.message || 'Failed to load concerns');
+      } finally {
+        setTrackingLoading(false);
+      }
+    },
+    [studentId]
+  );
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshMe();
+      await Promise.all([refreshMe(), loadConcernTracking(true)]);
     } catch (error) {
       // No-op: existing data remains visible.
     } finally {
       setRefreshing(false);
     }
-  }, [refreshMe]);
+  }, [refreshMe, loadConcernTracking]);
+
+  useEffect(() => {
+    loadConcernTracking(false);
+  }, [loadConcernTracking]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadConcernTracking(true);
+    }, [loadConcernTracking])
+  );
 
   const displayName = useMemo(() => {
     const firstName = String(user?.firstName || '').trim();
@@ -153,6 +257,12 @@ export default function StudentDashboardScreen({ navigation }) {
   }, [user?.email, user?.firstName, user?.lastName, user?.studentId, user?.studentIdPhoto]);
 
   const idPhotoStatus = user?.studentIdPhoto ? 'Uploaded' : 'Missing';
+
+  const activeConcerns = useMemo(() => {
+    return trackingConcerns
+      .filter((concern) => ['pending', 'reviewing'].includes(String(concern?.status || '').toLowerCase()))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [trackingConcerns]);
 
   if (initialSyncing && !user) {
     return (
@@ -326,16 +436,102 @@ export default function StudentDashboardScreen({ navigation }) {
         <View style={[styles.panelCard, styles.trackingPanel]}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>Concern Tracking</Text>
-            <Text style={styles.panelSubtitle}>No sample items</Text>
-          </View>
-
-          <View style={styles.emptyStateCard}>
-            <Ionicons name="file-tray-outline" size={28} color="#9aa4b2" />
-            <Text style={styles.emptyStateTitle}>No concerns available yet</Text>
-            <Text style={styles.emptyStateText}>
-              This dashboard now shows real data only. Concern records will appear when the concern backend API is connected.
+            <Text style={styles.panelSubtitle}>
+              {activeConcerns.length > 0 ? `${activeConcerns.length} active` : 'All clear'}
             </Text>
           </View>
+
+          {trackingLoading ? (
+            <View style={styles.trackingLoader}>
+              <ActivityIndicator size="small" color="#e53935" />
+              <Text style={styles.trackingLoaderText}>Loading your concerns...</Text>
+            </View>
+          ) : trackingError ? (
+            <View style={styles.trackingErrorCard}>
+              <Ionicons name="alert-circle-outline" size={18} color="#b91c1c" />
+              <Text style={styles.trackingErrorText}>{trackingError}</Text>
+            </View>
+          ) : activeConcerns.length === 0 ? (
+            <View style={styles.emptyStateCard}>
+              <Ionicons name="checkmark-done-circle-outline" size={28} color="#16a34a" />
+              <Text style={styles.emptyStateTitle}>No active concerns right now</Text>
+              <Text style={styles.emptyStateText}>
+                New submissions will appear here until they are reviewed and completed.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.trackingList}>
+              {activeConcerns.map((concern) => {
+                const statusValue = String(concern.status || 'pending').toLowerCase();
+                const statusColor = getConcernStatusColor(statusValue);
+                const stepIndex = getConcernStepIndex(statusValue);
+                return (
+                  <TouchableOpacity
+                    key={concern._id || concern.id}
+                    style={styles.trackingCard}
+                    onPress={() => navigation.navigate('ConcernDetail', { concern })}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.trackingHeaderRow}>
+                      <View style={styles.trackingTitleWrap}>
+                        <Text style={styles.trackingType}>{concern.concernType || 'Concern'}</Text>
+                        <Text style={styles.trackingGenre}>{concern.genre || 'General'}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.trackingStatusPill,
+                          { backgroundColor: `${statusColor}22`, borderColor: statusColor },
+                        ]}
+                      >
+                        <Text style={[styles.trackingStatusText, { color: statusColor }]}>
+                          {getConcernStatusLabel(statusValue)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.trackingStepsRow}>
+                      {['Pending', 'Reviewing', 'Completed'].map((label, index) => {
+                        const isActive = index <= stepIndex;
+                        return (
+                          <View key={label} style={styles.trackingStepItem}>
+                            <View
+                              style={[
+                                styles.trackingStepDot,
+                                isActive ? styles.trackingStepDotActive : styles.trackingStepDotIdle,
+                              ]}
+                            />
+                            <Text
+                              style={[
+                                styles.trackingStepLabel,
+                                isActive ? styles.trackingStepLabelActive : styles.trackingStepLabelIdle,
+                              ]}
+                            >
+                              {label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={styles.trackingDescription} numberOfLines={2}>
+                      {concern.description}
+                    </Text>
+
+                    <View style={styles.trackingFooterRow}>
+                      <View style={styles.trackingDateWrap}>
+                        <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
+                        <Text style={styles.trackingDateText}>{formatConcernDate(concern.createdAt)}</Text>
+                      </View>
+                      <View style={styles.trackingLink}>
+                        <Text style={styles.trackingLinkText}>View details</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#dc2626" />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -676,6 +872,149 @@ const styles = StyleSheet.create({
   },
   trackingPanel: {
     gap: 9,
+  },
+  trackingLoader: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  trackingLoaderText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  trackingErrorCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    backgroundColor: '#fef2f2',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trackingErrorText: {
+    flex: 1,
+    color: '#b91c1c',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  trackingList: {
+    gap: 10,
+  },
+  trackingCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    padding: 14,
+    gap: 8,
+  },
+  trackingHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trackingTitleWrap: {
+    flex: 1,
+  },
+  trackingType: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#dc2626',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 3,
+  },
+  trackingGenre: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  trackingStatusPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  trackingStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  trackingStepsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f8fafc',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  trackingStepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trackingStepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  trackingStepDotActive: {
+    backgroundColor: '#16a34a',
+  },
+  trackingStepDotIdle: {
+    backgroundColor: '#cbd5f5',
+  },
+  trackingStepLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  trackingStepLabelActive: {
+    color: '#166534',
+  },
+  trackingStepLabelIdle: {
+    color: '#94a3b8',
+  },
+  trackingDescription: {
+    fontSize: 12,
+    color: '#4b5563',
+    lineHeight: 18,
+  },
+  trackingFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  trackingDateWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  trackingDateText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '700',
+  },
+  trackingLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trackingLinkText: {
+    fontSize: 11,
+    color: '#dc2626',
+    fontWeight: '800',
   },
   emptyStateCard: {
     borderRadius: 14,

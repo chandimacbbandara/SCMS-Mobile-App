@@ -44,9 +44,18 @@ const ConcernDetailScreen = ({ route, navigation }) => {
   };
 
   const getStatusText = (status) => {
-    if (status === 'reviewing') return 'In Progress';
-    if (!status) return 'Unknown';
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'reviewing':
+        return 'Reviewing';
+      case 'resolved':
+        return 'Completed';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return 'Unknown';
+    }
   };
 
   const getReportUrl = () => {
@@ -82,7 +91,7 @@ const ConcernDetailScreen = ({ route, navigation }) => {
         body: { status: 'reviewing' },
       });
       setConcern(result.data || concern);
-      Alert.alert('Success', 'Concern marked as In Progress.');
+      Alert.alert('Success', 'Concern marked as Reviewing.');
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to update status.');
     } finally {
@@ -190,7 +199,7 @@ const ConcernDetailScreen = ({ route, navigation }) => {
               disabled={submitting}
             >
               <Ionicons name="checkmark-circle-outline" size={16} color="#2196f3" />
-              <Text style={styles.markProgressText}>Mark as In Progress</Text>
+              <Text style={styles.markProgressText}>Mark as Reviewing</Text>
             </TouchableOpacity>
           )}
         </View>

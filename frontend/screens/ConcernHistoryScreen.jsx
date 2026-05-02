@@ -1,5 +1,5 @@
 // screens/ConcernHistoryScreen.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,39 +9,56 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { getStudentConcerns } from '../lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAuth } from '../context/AuthContext';
 
 const ConcernHistoryScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const [concerns, setConcerns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadConcerns();
-  }, []);
+  const loadConcerns = useCallback(async (isRefresh = false) => {
+    const studentId = user?.id || user?._id;
 
-  const loadConcerns = async () => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    if (!studentId) {
+      setConcerns([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
-      const userData = await AsyncStorage.getItem('user');
-      const user = userData ? JSON.parse(userData) : null;
-
-      if (user) {
-        const response = await getStudentConcerns(user.id || user._id);
-        setConcerns(response.data || []);
-      }
+      const response = await getStudentConcerns(studentId);
+      setConcerns(response.data || []);
     } catch (error) {
       console.error('Error loading concerns:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user?.id, user?._id]);
+
+  useEffect(() => {
+    loadConcerns(false);
+  }, [loadConcerns]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadConcerns(true);
+    }, [loadConcerns])
+  );
 
   const onRefresh = () => {
-    setRefreshing(true);
-    loadConcerns();
+    loadConcerns(true);
   };
 
   const getStatusColor = (status) => {
@@ -60,7 +77,18 @@ const ConcernHistoryScreen = ({ navigation }) => {
   };
 
   const getStatusText = (status) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'reviewing':
+        return 'Reviewing';
+      case 'resolved':
+        return 'Completed';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return 'Unknown';
+    }
   };
 
   const renderConcernCard = ({ item }) => (
@@ -81,6 +109,15 @@ const ConcernHistoryScreen = ({ navigation }) => {
       <Text style={styles.description} numberOfLines={2}>
         {item.description}
       </Text>
+
+      {item.adminReply ? (
+        <View style={styles.replyPreview}>
+          <Ionicons name="chatbubble-ellipses" size={14} color="#16a34a" />
+          <Text style={styles.replyPreviewText} numberOfLines={2}>
+            {item.adminReply}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.cardFooter}>
         <Text style={styles.date}>
@@ -212,6 +249,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4caf50',
     marginLeft: 4,
+  },
+  replyPreview: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 10,
+  },
+  replyPreviewText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#166534',
+    lineHeight: 18,
   },
   emptyContainer: {
     flex: 1,
