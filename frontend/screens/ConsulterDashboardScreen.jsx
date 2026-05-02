@@ -268,7 +268,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#dc2626" />}
         >
           <LinearGradient
-              colors={['#111827', '#1f2937', '#7f1d1d']}
+              colors={['#0f172a', '#134e4a', '#0d9488']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.hero}
@@ -309,7 +309,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
           {loading ? (
               <View style={styles.loaderCard}>
-                <ActivityIndicator size="large" color="#dc2626" />
+                <ActivityIndicator size="large" color="#0d9488" />
                 <Text style={styles.loaderText}>Loading consulter analytics...</Text>
               </View>
           ) : (
@@ -379,7 +379,7 @@ export default function ConsulterDashboardScreen({ navigation }) {
 
                   {concernsLoading ? (
                       <View style={concernsStyles.loaderWrap}>
-                        <ActivityIndicator size="large" color="#dc2626" />
+                        <ActivityIndicator size="large" color="#0d9488" />
                         <Text style={concernsStyles.loaderText}>Loading concerns...</Text>
                       </View>
                   ) : (
@@ -641,8 +641,8 @@ const styles = StyleSheet.create({
   badge: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.45)',
-    backgroundColor: 'rgba(220,38,38,0.18)',
+    borderColor: 'rgba(45,212,191,0.4)',
+    backgroundColor: 'rgba(13,148,136,0.15)',
     paddingVertical: 5,
     paddingHorizontal: 11,
     flexDirection: 'row',
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 999,
-    backgroundColor: '#fca5a5',
+    backgroundColor: '#2dd4bf',
   },
   badgeText: {
     marginLeft: 6,
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   },
   logoutBtn: {
     borderRadius: 999,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#0d9488',
     paddingHorizontal: 11,
     paddingVertical: 8,
     flexDirection: 'row',
