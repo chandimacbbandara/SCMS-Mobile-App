@@ -818,6 +818,7 @@ async function getAdminDashboard(req, res) {
       totalAdmins,
       recentStudentDocs,
       feedbackSummary,
+      allConcernsDocs,
     ] = await Promise.all([
       Student.countDocuments({}),
       Student.countDocuments({ studentIdPhoto: { $nin: [null, ''] } }),
@@ -828,6 +829,10 @@ async function getAdminDashboard(req, res) {
         .limit(8)
         .select('firstName lastName email studentId createdAt'),
       getFeedbackSummaryStats(),
+      Concern.find({ concernType: 'Normal Concern' })
+        .sort({ createdAt: -1 })
+        .populate('studentId', 'firstName lastName email studentId')
+        .select('_id studentId genre description status adminReply repliedAt createdAt'),
     ]);
 
     const studentsWithoutPhoto = Math.max(totalStudents - studentsWithPhoto, 0);
@@ -839,6 +844,23 @@ async function getAdminDashboard(req, res) {
       email: student.email,
       studentId: student.studentId,
       createdAt: student.createdAt,
+    }));
+
+    const allConcerns = allConcernsDocs.map((concern) => ({
+      _id: concern._id,
+      studentId: concern.studentId ? {
+        _id: concern.studentId._id,
+        firstName: concern.studentId.firstName,
+        lastName: concern.studentId.lastName,
+        email: concern.studentId.email,
+        studentId: concern.studentId.studentId,
+      } : null,
+      genre: concern.genre || 'General',
+      description: concern.description,
+      status: concern.status || 'pending',
+      adminReply: concern.adminReply,
+      repliedAt: concern.repliedAt,
+      createdAt: concern.createdAt,
     }));
 
     return res.json({
@@ -853,6 +875,7 @@ async function getAdminDashboard(req, res) {
         averageRating: feedbackSummary.averageRating,
         feedbackDistribution: feedbackSummary.feedbackDistribution,
         recentStudents,
+        allConcerns,
       },
     });
   } catch (error) {
