@@ -27,7 +27,7 @@ export function getApiBaseUrl() {
     return `http://${host}:5000/api`; // ✅ PERMANENT PORT 5000
   }
 
-  return 'http://localhost:5000/api'; // ✅ PERMANENT PORT 5000
+  return 'https://scmsbackend-production.up.railway.app/api'; // ✅ PERMANENT PORT 5000
 }
 
 export async function apiRequest(path, options = {}) {
