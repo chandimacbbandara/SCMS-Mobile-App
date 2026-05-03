@@ -276,47 +276,153 @@ export default function OwnerAnalyticsSection() {
   };
 
   const handleExport = async (format) => {
+    if (!monthConcerns.length) {
+      Alert.alert('No Data', `No concerns found for ${monthLabel(reportMonth)}.`);
+      return;
+    }
+    
     setExporting(true);
     try {
       const imageBase64 = await getBase64Image();
-      const title = `SCMS_Analytics_${monthLabel(reportMonth).replace(' ', '_')}`;
+      const title = `SCMS_Report_${monthLabel(reportMonth).replace(' ', '_')}`;
+      
       if (format === 'PDF') {
         const html = `
           <html>
             <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
               <style>
-                body { font-family: 'Helvetica', sans-serif; padding: 0; margin: 0; color: #1e293b; background: #f8fafc; }
-                .header { background: #0f172a; color: white; padding: 40px; border-bottom: 8px solid #dc2626; }
-                .header h1 { margin: 0; font-size: 32px; letter-spacing: 1px; }
-                .hero-image { width: 100%; height: 250px; background-image: url('${imageBase64}'); background-size: cover; background-position: center; }
-                .content { padding: 40px; }
-                .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 40px 0; }
-                .stat-card { background: white; border: 1px solid #e2e8f0; padding: 25px; border-radius: 16px; text-align: center; }
-                .stat-val { font-size: 32px; font-weight: 800; color: #dc2626; }
+                body { font-family: 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif; padding: 0; margin: 0; color: #334155; background: #ffffff; }
+                .page { padding: 30px; }
+                .header { border-bottom: 3px solid #dc2626; padding-bottom: 15px; margin-bottom: 25px; display: flex; flex-direction: row; justify-content: space-between; align-items: center; }
+                .header-left h1 { margin: 0; font-size: 22px; color: #0f172a; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; }
+                .header-left p { margin: 5px 0 0; color: #64748b; font-weight: bold; font-size: 12px; }
+                .logo-placeholder { width: 45px; height: 45px; background: #0f172a; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 18px; border: 2px solid #dc2626; }
+                
+                .hero-container { position: relative; width: 100%; height: 140px; border-radius: 16px; overflow: hidden; margin-bottom: 25px; background: #0f172a; }
+                .hero-image { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+                .hero-overlay { position: absolute; bottom: 15px; left: 15px; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+                .hero-overlay h2 { margin: 0; font-size: 18px; font-weight: 800; }
+                .hero-overlay p { margin: 5px 0 0; font-size: 10px; opacity: 0.9; }
+                
+                .stats-container { display: flex; flex-direction: row; justify-content: space-between; gap: 8px; margin-bottom: 25px; }
+                .stat-card { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; text-align: center; }
+                .stat-val { font-size: 20px; font-weight: 900; color: #dc2626; display: block; }
+                .stat-label { font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; font-weight: 800; }
+                
+                .section-title { font-size: 14px; font-weight: 900; color: #0f172a; border-left: 4px solid #dc2626; padding-left: 10px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+                
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 8.5px; table-layout: fixed; }
+                th { background: #f1f5f9; color: #475569; text-align: left; padding: 8px 6px; border-bottom: 2px solid #e2e8f0; font-weight: 800; text-transform: uppercase; }
+                td { padding: 8px 6px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; overflow: hidden; word-wrap: break-word; }
+                .status-pill { padding: 2px 6px; border-radius: 99px; font-size: 7.5px; font-weight: 800; text-transform: uppercase; display: inline-block; }
+                .status-resolved { background: #dcfce7; color: #16a34a; }
+                .status-pending { background: #fef9c3; color: #ca8a04; }
+                .status-rejected { background: #fee2e2; color: #dc2626; }
+                .status-reviewing { background: #e0f2fe; color: #0369a1; }
+                
+                .footer { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; color: #94a3b8; font-size: 7.5px; text-align: center; font-weight: 600; }
               </style>
             </head>
             <body>
-              <div class="header"><h1>SCMS ANALYTICS REPORT</h1><p>${monthLabel(reportMonth).toUpperCase()}</p></div>
-              ${imageBase64 ? `<div class="hero-image"></div>` : ''}
-              <div class="content">
-                <div class="stats-grid">
-                  <div class="stat-card"><div class="stat-val">${monthConcerns.length}</div><div>Total Submissions</div></div>
-                  <div class="stat-card"><div class="stat-val">${Math.round((monthConcerns.filter(c => c.status === 'resolved').length / (monthConcerns.length || 1)) * 100)}%</div><div>Resolution Rate</div></div>
-                  <div class="stat-card"><div class="stat-val">${monthConcerns.filter(c => c.genre === 'Medical Concern').length}</div><div>Medical Cases</div></div>
+              <div class="page">
+                <div class="header">
+                  <div class="header-left">
+                    <h1>SCMS ANALYTICS</h1>
+                    <p>Repository Log: ${monthLabel(reportMonth)}</p>
+                  </div>
+                  <div class="logo-placeholder">AKB</div>
+                </div>
+
+                <div class="hero-container">
+                  ${imageBase64 ? `<img src="${imageBase64}" class="hero-image" />` : '<div class="hero-image" style="background: linear-gradient(45deg, #0f172a, #1e293b)"></div>'}
+                  <div class="hero-overlay">
+                    <h2>Academic & Student Concerns</h2>
+                    <p>Generated: ${new Date().toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div class="stats-container">
+                  <div class="stat-card"><span class="stat-val">${monthConcerns.length}</span><span class="stat-label">Total Volume</span></div>
+                  <div class="stat-card"><span class="stat-val">${monthConcerns.filter(c => c.status === 'resolved').length}</span><span class="stat-label">Resolved</span></div>
+                  <div class="stat-card"><span class="stat-val">${monthConcerns.filter(c => c.genre === 'Medical Concern').length}</span><span class="stat-label">Critical</span></div>
+                </div>
+
+                <h3 class="section-title">Institutional Record Detail</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 12%">Date</th>
+                      <th style="width: 20%">Student Name</th>
+                      <th style="width: 18%">Category</th>
+                      <th style="width: 35%">Description</th>
+                      <th style="width: 15%">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${monthConcerns.slice(0, 35).map(c => {
+                      const sName = c.studentId && typeof c.studentId === 'object' ? `${c.studentId.firstName || ''} ${c.studentId.lastName || ''}`.trim() : 'Anonymous';
+                      const desc = (c.description || '').substring(0, 150) + ((c.description || '').length > 150 ? '...' : '');
+                      return `
+                        <tr>
+                          <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+                          <td style="font-weight: 700; color: #0f172a;">${sName}</td>
+                          <td>${c.genre}</td>
+                          <td style="font-size: 7.5px; line-height: 1.3; color: #475569;">${desc}</td>
+                          <td><span class="status-pill status-${c.status}">${c.status}</span></td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+                ${monthConcerns.length > 35 ? `<p style="text-align: center; color: #94a3b8; font-size: 8px;">+ ${monthConcerns.length - 35} additional records truncated in PDF version</p>` : ''}
+
+                <div class="footer">
+                  <p>&copy; ${new Date().getFullYear()} SCMS | Academy of Knowledge Bridge</p>
+                  <p>Confidential institutional document. For administrative use only.</p>
                 </div>
               </div>
             </body>
           </html>
         `;
-        const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri);
+        const { uri } = await Print.printToFileAsync({ html, base64: false });
+        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
       } else {
-        const csv = "REPORT SUMMARY\nPeriod," + monthLabel(reportMonth) + "\nTotal," + monthConcerns.length + "\n\nCategory,Count\n" + buildCategoryBreakdown(monthConcerns).map(c => `"${c.name}",${c.count}`).join("\n");
+        // Comprehensive CSV Export for Excel
+        const csvHeader = `SCMS INSTITUTIONAL REPORT - ${monthLabel(reportMonth).toUpperCase()}\n`;
+        const csvGenerated = `Report Generated: ${new Date().toLocaleString()}\n`;
+        const csvStats = `SUMMARY\nTotal Submissions,${monthConcerns.length}\nResolved,${monthConcerns.filter(c => c.status === 'resolved').length}\nMedical/Critical,${monthConcerns.filter(c => c.genre === 'Medical Concern').length}\n\n`;
+        
+        const csvTableHead = "Date,Student Name,Email,Gender,Category,Type,Status,Description,Admin Reply,Mobile,Address\n";
+        const csvRows = monthConcerns.map(c => {
+          const s = c.studentId || {};
+          const sName = typeof s === 'object' ? `"${(s.firstName || '')} ${(s.lastName || '')}"`.trim() : '"Anonymous"';
+          const email = typeof s === 'object' ? `"${s.email || 'N/A'}"` : '"N/A"';
+          
+          return [
+            new Date(c.createdAt).toLocaleDateString(),
+            sName,
+            email,
+            `"${c.gender || s.gender || 'N/A'}"`,
+            `"${c.genre || 'N/A'}"`,
+            `"${c.concernType || 'N/A'}"`,
+            `"${c.status || 'N/A'}"`,
+            `"${(c.description || '').replace(/"/g, '""')}"`,
+            `"${(c.adminReply || '').replace(/"/g, '""')}"`,
+            `"${c.mobileNumber || s.mobileNumber || 'N/A'}"`,
+            `"${(c.address || s.address || 'N/A').replace(/"/g, '""')}"`
+          ].join(',');
+        }).join("\n");
+        
+        const csvContent = csvHeader + csvGenerated + csvStats + csvTableHead + csvRows;
         const fileUri = FileSystem.cacheDirectory + `${title}.csv`;
-        await FileSystem.writeAsStringAsync(fileUri, csv);
-        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv' });
+        await FileSystem.writeAsStringAsync(fileUri, csvContent);
+        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Excel Snapshot' });
       }
-    } catch (e) { Alert.alert('Error', 'Failed to generate report.'); }
+    } catch (e) { 
+      console.log('Export Error:', e);
+      Alert.alert('Export Failed', 'An error occurred while generating the report.'); 
+    }
     finally { setExporting(false); }
   };
 
