@@ -2,32 +2,91 @@ import Constants from 'expo-constants';
 import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function inferHostFromExpo() {
-  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoClient?.hostUri;
+// ─── API URL Auto-Detection ───────────────────────────────────────────────────
+// Priority:
+//   1. Local backend (EXPO_PUBLIC_LOCAL_API_URL or Expo-inferred host) — probed at startup
+//   2. Production Railway URL (EXPO_PUBLIC_API_URL) — used if local is unreachable
+
+let _resolvedApiUrl = null;       // cached after first probe
+let _resolvePromise = null;       // ensures only one probe runs
+
+function inferLocalUrl() {
+  // Prefer explicit env variable
+  if (process.env.EXPO_PUBLIC_LOCAL_API_URL) {
+    return process.env.EXPO_PUBLIC_LOCAL_API_URL.replace(/\/$/, '');
+  }
+
+  // Fall back to Expo dev-server host + port 5000
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest2?.extra?.expoClient?.hostUri;
   if (hostUri) {
-    return hostUri.split(':')[0];
+    const host = hostUri.split(':')[0];
+    return `http://${host}:5000/api`;
   }
 
   const scriptURL = NativeModules?.SourceCode?.scriptURL || '';
   if (scriptURL.includes('://')) {
-    const part = scriptURL.split('://')[1] || '';
-    return part.split(':')[0];
+    const host = (scriptURL.split('://')[1] || '').split(':')[0];
+    if (host) return `http://${host}:5000/api`;
   }
 
   return null;
 }
 
+function getProductionUrl() {
+  return (
+    process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
+    'https://scmsbackend-production.up.railway.app/api'
+  );
+}
+
+/**
+ * Probe the local backend with a short timeout.
+ * Returns the local URL if reachable, otherwise the production URL.
+ * Result is cached for the entire app session.
+ */
+async function resolveApiUrl() {
+  if (_resolvedApiUrl) return _resolvedApiUrl;
+
+  if (_resolvePromise) return _resolvePromise;   // de-duplicate concurrent calls
+
+  _resolvePromise = (async () => {
+    const localUrl = inferLocalUrl();
+
+    if (localUrl) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000); // 2 s timeout
+
+        const res = await fetch(`${localUrl}/health`, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (res.ok || res.status < 500) {
+          console.log(`[API] ✅ Local backend reachable → ${localUrl}`);
+          _resolvedApiUrl = localUrl;
+          return _resolvedApiUrl;
+        }
+      } catch {
+        // local backend not reachable — fall through to production
+      }
+    }
+
+    const prodUrl = getProductionUrl();
+    console.log(`[API] 🌐 Using production backend → ${prodUrl}`);
+    _resolvedApiUrl = prodUrl;
+    return _resolvedApiUrl;
+  })();
+
+  return _resolvePromise;
+}
+
+/** Synchronous getter — returns cached URL or production fallback before probe completes */
 export function getApiBaseUrl() {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
-  }
-
-  const host = inferHostFromExpo();
-  if (host) {
-    return `http://${host}:5000/api`; // ✅ PERMANENT PORT 5000
-  }
-
-  return 'https://scmsbackend-production.up.railway.app/api'; // ✅ PERMANENT PORT 5000
+  return _resolvedApiUrl || getProductionUrl();
 }
 
 export async function apiRequest(path, options = {}) {
@@ -59,7 +118,8 @@ export async function apiRequest(path, options = {}) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
-  const endpoint = `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
+  const baseUrl = await resolveApiUrl();
+  const endpoint = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
   // Handle FormData properly - don't stringify
   let requestBody = undefined;
