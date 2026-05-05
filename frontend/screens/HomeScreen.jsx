@@ -211,7 +211,7 @@ function FeatureCard({ item, index }) {
         onPressIn={() => Animated.spring(scale, { toValue: 0.94, useNativeDriver: true }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
       >
-        <LinearGradient colors={['#ffffff', '#fcfcfc']} style={styles.featureCard}>
+        <LinearGradient colors={['#ffffff', '#ffffff']} style={styles.featureCard}>
           <View style={styles.featureIconBox}>
             <Ionicons name={item.icon} size={22} color="#e53935" />
           </View>
@@ -242,20 +242,20 @@ function StepRow({ item, index, isActive, onPress }) {
   }, [isActive]);
 
   const animH = expandH.interpolate({ inputRange: [0, 1], outputRange: [0, 52] });
-  const bgColor = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ['#ffffff', '#fff5f5'] });
+  const bgColor = bgAnim.interpolate({ inputRange: [0, 1], outputRange: ['#ffffff', 'rgba(229,57,53,0.06)'] });
 
   return (
     <Animated.View style={[styles.stepCard, { backgroundColor: bgColor }]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.stepCardHead}>
         <LinearGradient
-          colors={isActive ? ['#e53935', '#b71c1c'] : ['#fef2f2', '#fee2e2']}
+          colors={isActive ? ['#e53935', '#b71c1c'] : ['rgba(229,57,53,0.08)', 'rgba(229,57,53,0.04)']}
           style={styles.stepNum}
         >
           <Text style={[styles.stepNumText, isActive ? { color: '#fff' } : { color: '#e53935' }]}>{index + 1}</Text>
         </LinearGradient>
         <View style={styles.stepInfo}>
           <View style={styles.stepIconRow}>
-            <Ionicons name={item.icon} size={13} color={isActive ? '#e53935' : '#4b5563'} />
+            <Ionicons name={item.icon} size={13} color={isActive ? '#e53935' : 'rgba(0,0,0,0.6)'} />
             <Text style={[styles.stepTitle, isActive && styles.stepTitleActive]}>{item.title}</Text>
           </View>
         </View>
@@ -445,7 +445,7 @@ export default function HomeScreen({ navigation }) {
         <Animated.View style={[styles.heroSection, { transform: [{ scale: heroScale }] }]}>
           <View style={styles.heroBgBlur} />
           <View style={styles.heroBgBlur2} />
-          
+
           {[40, 90, 150, 200, 260, 310].map((x, i) => (
             <Particle key={i} x={x} delay={i * 400} size={i % 2 === 0 ? 4 : 3} />
           ))}
@@ -513,7 +513,7 @@ export default function HomeScreen({ navigation }) {
             { val: '100%', lbl: 'Fully\nConfidential' },
             { val: '1', lbl: 'Unified\nPortal' },
           ].map((s, i) => (
-            <LinearGradient key={i} colors={['#ffffff', '#f8f9fa']} style={styles.statCard}>
+            <LinearGradient key={i} colors={['#ffffff', '#ffffff']} style={styles.statCard}>
               <Text style={styles.statVal}>{s.val}</Text>
               <Text style={styles.statLbl}>{s.lbl}</Text>
             </LinearGradient>
@@ -557,7 +557,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* ── FOOTER ── */}
-        <LinearGradient colors={['#4b5563', '#1f2937']} style={styles.footer}>
+        <LinearGradient colors={['#111111', '#000000']} style={styles.footer}>
           <View style={styles.footerMain}>
             <View style={styles.footerTop}>
               <Image source={brandLogo} style={styles.footerLogo} resizeMode="cover" />
@@ -581,7 +581,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.footerCopy}>© AKB Creative Solution</Text>
         </LinearGradient>
 
-        </Animated.ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -611,16 +611,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(229,57,53,0.1)',
+    borderColor: 'rgba(229,57,53,0.08)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   stickyBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stickyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#e53935' },
-  stickyBrand: { color: '#1f2937', fontSize: 14, fontWeight: '900' },
+  stickyBrand: { color: '#111111', fontSize: 14, fontWeight: '900' },
   stickyAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -635,11 +635,14 @@ const styles = StyleSheet.create({
   /* Marquee */
   marqueeWrap: {
     backgroundColor: 'rgba(229,57,53,0.05)',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    marginHorizontal: 20,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: 'rgba(229,57,53,0.1)',
-    marginBottom: 20,
+    borderColor: 'rgba(229,57,53,0.12)',
+    borderRadius: 999,
+    borderWidth: 1,
+    marginBottom: 24,
     overflow: 'hidden',
   },
   marqueeText: {
@@ -664,13 +667,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: 'rgba(0,0,0,0.08)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     gap: 6,
   },
   topBadgeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#e53935' },
-  topBadgeText: { color: '#4b5563', fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  topBadgeText: { color: 'rgba(0,0,0,0.7)', fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
   loginBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -703,17 +706,19 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 28,
+    paddingBottom: 32,
     paddingHorizontal: 20,
     position: 'relative',
     overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(229,57,53,0.08)',
   },
   heroBgBlur: {
     position: 'absolute',
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: 'rgba(229,57,53,0.04)',
+    backgroundColor: 'rgba(229,57,53,0.05)',
     top: -50,
     left: -50,
   },
@@ -722,7 +727,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(229,57,53,0.03)',
+    backgroundColor: 'rgba(229,57,53,0.04)',
     bottom: 20,
     right: -40,
   },
@@ -740,7 +745,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(229,57,53,0.15)',
+    backgroundColor: 'rgba(229,57,53,0.18)',
   },
   ring1: {
     position: 'absolute',
@@ -777,9 +782,9 @@ const styles = StyleSheet.create({
     borderColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
   },
   heroImg: { width: '100%', height: '100%' },
   heroShimmer: {
@@ -802,7 +807,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveDotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981' },
+  liveDotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#e53935' },
   orbitDot1: {
     position: 'absolute',
     width: 200,
@@ -823,7 +828,7 @@ const styles = StyleSheet.create({
   orbitDotWhite: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ffffff' },
 
   /* Hero text */
-  heroTitleBlock: { alignItems: 'center', marginBottom: 22 },
+  heroTitleBlock: { alignItems: 'center', marginBottom: 20 },
   heroAcademy: {
     color: '#e53935',
     fontSize: 10,
@@ -833,16 +838,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   heroTitle: {
-    color: '#1f2937',
+    color: '#111111',
     fontSize: 30,
     fontWeight: '900',
     textAlign: 'center',
     lineHeight: 36,
-    letterSpacing: -0.6,
+    letterSpacing: -0.4,
     marginBottom: 12,
   },
   heroSub: {
-    color: '#6b7280',
+    color: 'rgba(0,0,0,0.62)',
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 20,
@@ -858,9 +863,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#e53935',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    elevation: 9,
   },
   ctaGrad: {
     flexDirection: 'row',
@@ -876,7 +881,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderColor: 'rgba(0,0,0,0.1)',
     backgroundColor: '#ffffff',
     paddingVertical: 14,
     gap: 7,
@@ -888,29 +893,34 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: 'rgba(0,0,0,0.1)',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  signedInDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#10b981' },
-  signedInTxt: { color: '#4b5563', fontSize: 12, fontWeight: '600', flex: 1, lineHeight: 17 },
+  signedInDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#e53935' },
+  signedInTxt: { color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600', flex: 1, lineHeight: 17 },
 
   /* Stats */
-  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 28 },
+  statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: 30, marginTop: 4 },
   statCard: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: 'rgba(0,0,0,0.08)',
     paddingVertical: 16,
     paddingHorizontal: 10,
     alignItems: 'center',
     backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   statVal: { color: '#e53935', fontSize: 22, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
   statLbl: {
-    color: '#6b7280',
+    color: 'rgba(0,0,0,0.6)',
     fontSize: 10,
     fontWeight: '700',
     textAlign: 'center',
@@ -924,25 +934,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginBottom: 14,
+    marginBottom: 12,
+    marginTop: 4,
   },
   sectionAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: '#e53935', marginRight: 10 },
-  sectionLabel: { color: '#1f2937', fontSize: 16, fontWeight: '900', letterSpacing: -0.3 },
+  sectionLabel: { color: '#111111', fontSize: 16, fontWeight: '900', letterSpacing: -0.3 },
 
   /* Feature cards */
-  featureScroll: { paddingHorizontal: 20, paddingBottom: 8, gap: 12, marginBottom: 28 },
+  featureScroll: { paddingHorizontal: 20, paddingBottom: 10, gap: 12, marginBottom: 30 },
   featureCard: {
     width: 190,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 18,
+    borderColor: 'rgba(0,0,0,0.08)',
+    padding: 20,
     backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   featureIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     backgroundColor: 'rgba(229,57,53,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -950,22 +966,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(229,57,53,0.2)',
   },
-  featureCardTitle: { color: '#1f2937', fontSize: 14, fontWeight: '800', marginBottom: 8 },
-  featureCardText: { color: '#6b7280', fontSize: 12, lineHeight: 18, fontWeight: '400', flex: 1 },
+  featureCardTitle: { color: '#111111', fontSize: 14, fontWeight: '800', marginBottom: 8 },
+  featureCardText: { color: 'rgba(0,0,0,0.62)', fontSize: 12, lineHeight: 18, fontWeight: '400', flex: 1 },
   featureCardFoot: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 16 },
   featureCardLearn: { color: '#e53935', fontSize: 11, fontWeight: '800' },
 
   /* Steps accordion */
-  stepsContainer: { paddingHorizontal: 20, gap: 8, marginBottom: 28 },
-  stepCard: { borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden', backgroundColor: '#ffffff' },
-  stepCardHead: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  stepsContainer: { paddingHorizontal: 20, gap: 10, marginBottom: 32 },
+  stepCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  stepCardHead: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   stepNum: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  stepNumText: { color: '#9ca3af', fontSize: 13, fontWeight: '900' },
+  stepNumText: { color: 'rgba(0,0,0,0.5)', fontSize: 13, fontWeight: '900' },
   stepInfo: { flex: 1 },
   stepIconRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  stepTitle: { color: '#4b5563', fontSize: 13, fontWeight: '700' },
-  stepTitleActive: { color: '#1f2937', fontWeight: '900' },
-  stepBodyText: { color: '#6b7280', fontSize: 12, lineHeight: 18, paddingHorizontal: 14, paddingBottom: 14 },
+  stepTitle: { color: 'rgba(0,0,0,0.7)', fontSize: 13, fontWeight: '700' },
+  stepTitleActive: { color: '#111111', fontWeight: '900' },
+  stepBodyText: { color: 'rgba(0,0,0,0.62)', fontSize: 12, lineHeight: 18, paddingHorizontal: 16, paddingBottom: 16 },
 
   /* Footer */
   footer: {
@@ -975,6 +1002,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.05)',
     padding: 12,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 4,
+    marginBottom: 24,
   },
   footerMain: {
     flexDirection: 'row',
@@ -986,9 +1019,9 @@ const styles = StyleSheet.create({
   footerTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   footerLogo: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   footerBrand: { color: '#ffffff', fontSize: 12, fontWeight: '900' },
-  footerTagline: { color: '#9ca3af', fontSize: 9, fontWeight: '600' },
+  footerTagline: { color: 'rgba(255,255,255,0.7)', fontSize: 9, fontWeight: '600' },
   footerContacts: { gap: 4 },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  footerTxt: { color: '#9ca3af', fontSize: 10, fontWeight: '600' },
-  footerCopy: { color: '#9ca3af', fontSize: 9, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  footerTxt: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '600' },
+  footerCopy: { color: 'rgba(255,255,255,0.7)', fontSize: 9, fontWeight: '600', marginTop: 8, textAlign: 'center' },
 });

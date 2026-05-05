@@ -11,6 +11,7 @@ import {
   Image,
   Linking,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -178,8 +179,12 @@ const ConcernDetailScreen = ({ route, navigation }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollPadding}>
-        <View style={styles.mainCard}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex1}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollPadding}>
+          <View style={styles.mainCard}>
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.typeText}>{concern.concernType || 'Normal Concern'}</Text>
@@ -337,6 +342,7 @@ const ConcernDetailScreen = ({ route, navigation }) => {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -345,6 +351,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#e53935',
+  },
+  flex1: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
