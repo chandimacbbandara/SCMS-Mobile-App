@@ -11,6 +11,8 @@ import {
   SafeAreaView,
   Modal,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
@@ -214,12 +216,16 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex1}
       >
-        {/* Status Bar */}
-        <View style={styles.statusBar}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Status Bar */}
+          <View style={styles.statusBar}>
           <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(currentConcern?.status) }]} />
           <Text style={styles.statusBarText}>{getStatusLabel(currentConcern?.status).toUpperCase()}</Text>
           <TouchableOpacity
@@ -376,7 +382,8 @@ export default function AdminConcernDetailScreen({ navigation, route }) {
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -385,6 +392,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  flex1: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
